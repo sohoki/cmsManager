@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aten.com.backoffice.sts.sch.mapper.AgentGroupInfoManagerMapper">
+	<select id="selectAgentGroupInfoLeftListByPagination" resultType="AgentGroupInfoVO"> 
+		SELECT TB.* 
+		FROM 
+		(
+			SELECT 
+				SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT, ROWNUM RNUM, X.* 
+			FROM 
+			( 
+				SELECT 
+					A.AGENT_CODE, A.AGENT_NM
+				FROM TB_AGENTINFO A 
+				WHERE A.AGENT_USEYN ='Y'
+				AND A.AGENT_CODE NOT IN 
+				(
+					SELECT
+						B.AGENT_CODE 
+					FROM TB_AGENTGROUPINFO B 
+					WHERE B.CONSCH_CODE =#{conschCode}
+				)
+				AND A.AGENT_CONTENTGUBUN = 'AGENT_CONTENT_2'
+				<if test="adminLevel != 'ROLE_ADMIN'">
+					AND A.PART_ID IN 
+					(
+						SELECT 
+							PART_ID 
+						FROM TB_PARTINFO 
+						WHERE PART_ID = #{partId}
+						UNION ALL
+						SELECT 
+							PART_ID
+						FROM TB_PARTINFO
+						START WITH PARENT_PART_ID = #{partId}
+						CONNECT BY PRIOR PART_ID = PARENT_PART_ID
+					) 
+				</if> 
+				ORDER by a.AGENT_CODE ASC
+			)X		      
+		) TB
+		WHERE RNUM BETWEEN  #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}  
+	    ORDER BY TB.AGENT_CODE  DESC
+	</select>
+	
+	<select id="selectAgentGroupInfoRightListByPagination" resultType="AgentGroupInfoVO"> 
+	    SELECT
+	    	B.AGENT_NM, A.GROUP_SEQ
+		FROM TB_AGENTGROUPINFO A, TB_AGENTINFO B  
+		WHERE A.AGENT_CODE = B.AGENT_CODE 
+		AND A.CONSCH_CODE = #{conschCode}
+		ORDER BY A.GROUP_SEQ DESC
+	</select>
+	
+	<select id="selectAgentContentListInfo" resultType="AgentGroupInfoVO">
+		SELECT TB.* 
+		FROM 
+		(
+			SELECT
+				SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT, ROWNUM RNUM, X.* 
+			FROM 
+			(
+				SELECT
+					A.GROUP_SEQ, B.CONSCH_TITLE, B.CONSCH_STARTDAY, B.CONSCH_ENDDAY, C.DISPLAY_TITLE,
+					A.SEND_DATE, A.SEND_RESULT, A.RECEIVED_DATE, A.RECEIVED_RESULT, A.RECEIVED_FILE_DATE,
+					A.RECEIVED_FILE_RESULT
+				FROM TB_AGENTGROUPINFO A, TB_CONTENTSCHEDULE B, TB_DISPLAYPAGEINFO C
+				WHERE A.CONSCH_CODE = B.CONSCH_CODE
+				AND B.DISPLAY_SEQ = C.DISPLAY_SEQ
+				AND B.CONSCH_USEYN ='Y' AND C.DISPLAY_UESYN ='Y'
+				AND A.AGENT_CODE = #{agentCode}
+				ORDER BY A.GROUP_SEQ DESC
+			)X
+		) TB
+		WHERE RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}  
+	    ORDER BY TB.GROUP_SEQ DESC
+	</select>
+
+	<select id="selectAgentGroupInfoCheck" resultType="java.lang.Integer">
+		<![CDATA[
+			SELECT NVL(COUNT(A.AGENT_CODE), 0)
+			FROM TB_AGENTINFO A, TB_AGENTGROUPINFO B, TB_CONTENTSCHEDULE C
+			WHERE A.AGENT_CODE = B.AGENT_CODE 
+			AND B.CONSCH_CODE = C.CONSCH_CODE
+			AND A.AGENT_CODE = #{agentCode}
+			AND C.CONSCH_CODE NOT IN (#{conschCode})
+			AND C.CONSCH_STARTDAY >=  
+			(
+				SELECT 
+					CONSCH_STARTDAY 
+				FROM TB_CONTENTSCHEDULE 
+				WHERE CONSCH_CODE = #{conschCode}
+			)
+			AND C.CONSCH_ENDDAY <= 
+			(
+				SELECT 
+					CONSCH_ENDDAY 
+				FROM TB_CONTENTSCHEDULE 
+				WHERE CONSCH_CODE = #{conschCode}
+			)
+		]]>
+	</select>
+	
+	<select id="selectAgentSchCount" resultType="java.lang.Integer">
+        SELECT NVL(COUNT(A.GROUP_SEQ),0)
+        FROM TB_AGENTGROUPINFO A, TB_CONTENTSCHEDULE B, TB_AGENTINFO C
+        WHERE A.CONSCH_CODE = B.CONSCH_CODE 
+        AND A.AGENT_CODE = C.AGENT_CODE
+		AND	TO_CHAR(SYSDATE, 'YYYYMMDD') >= B.CONSCH_STARTDAY 
+		AND B.CONSCH_ENDDAY >= TO_CHAR(SYSDATE, 'YYYYMMDD')
+		AND B.CONSCH_USEYN = 'Y' AND  C.AGENT_CODE = #{agentCode}
+		AND A.SEND_RESULT = 'N'
+	</select>
+    
+	<!--  신규 xml 리스트 -->
+	<select id="selectDisplayPageInfoContentList" resultType="AgentGroupInfoVO">
+		SELECT 
+	     	A.DISPLAY_TITLE, A.DISPLAY_WIDTH, A.DISPLAY_HEIGHT, A.DISPALY_TOTALTIME, A.DISPLAY_NEXTSEQ, 
+			A.DISPLAY_LOCALFILE, B.GROUP_SEQ, B.CONSCH_CODE
+		FROM TB_DISPLAYPAGEINFO A, TB_AGENTGROUPINFO B, TB_CONTENTSCHEDULE C   
+		WHERE B.AGENT_CODE = #{agentCode} 
+		AND A.DISPLAY_SEQ = C.DISPLAY_SEQ
+		AND C.CONSCH_CODE = B.CONSCH_CODE AND B.SEND_RESULT = 'N' AND C.CONSCH_USEYN = 'Y'
+		AND TO_CHAR(SYSDATE, 'YYYYMMDD') >= C.CONSCH_STARTDAY 
+		AND C.CONSCH_ENDDAY >= TO_CHAR(SYSDATE, 'YYYYMMDD')
+	</select>
+   
+	<select id="selectDisplayFileInfoContentList" resultType="AgentGroupInfoVO">
+		SELECT 
+			B.GROUP_SEQ, B.CONSCH_CODE, A.DISPLAY_SEQ, SUBSTR(E.REPORT_URL,(INSTR(E.REPORT_URL,'upload/')-1)) AS REPORT_URL, D.ATCH_FILE_ID, 
+			D.STRE_FILE_NM, D.FILE_EXTSN, D.FILE_SIZE,E.REPORT_GUBUN 
+		FROM TB_DISPLAYDETAIL A, TB_AGENTGROUPINFO B, TB_CONTENTSCHEDULE C, LETTNFILEDETAIL D, TB_REPORTINFO E  
+		WHERE B.AGENT_CODE = #{agentCode} 
+		AND A.DISPLAY_SEQ = C.DISPLAY_SEQ
+		AND C.CONSCH_CODE = B.CONSCH_CODE AND B.SEND_RESULT = 'O'
+		AND B.RECEIVED_RESULT = 'O'  AND C.CONSCH_USEYN = 'Y'
+		AND TO_CHAR(SYSDATE, 'YYYYMMDD') >= C.CONSCH_STARTDAY
+		AND C.CONSCH_ENDDAY >= TO_CHAR(SYSDATE, 'YYYYMMDD')
+		AND B.GROUP_SEQ = #{groupSeq} 
+		AND A.REPORT_SEQ = E.REPORT_SEQ 
+		AND E.REPORT_DC = D.STRE_FILE_NM      
+	</select>
+   
+	<!--  신규 xml 리스트  끝-->
+	<insert id="insertAgentGroupInfo">
+		{CALL 
+			DECLARE 
+			BEGIN 
+				INSERT INTO TB_AGENTGROUPINFO 
+				(
+					GROUP_SEQ, CONSCH_CODE, AGENT_CODE, GROUP_USEYN, FRST_REGIST_PNTTM,
+					FRST_REGISTER_ID, LAST_UPDT_PNTTM, LAST_UPDUSR_ID, SEND_RESULT
+				)
+				VALUES
+				(
+					SQ_GROUPSEQ.NEXTVAL, #{conschCode}, #{agentCode}, 'Y', SYSDATE, 
+					#{userId,jdbcType=VARCHAR}, SYSDATE , #{userId,jdbcType=VARCHAR}, 'N'
+				);
+						       
+				UPDATE TB_CONTENTSCHEDULE SET 
+					CONSCH_AGENTCNT = CONSCH_AGENTCNT + 1 
+				WHERE CONSCH_CODE = #{conschCode};
+			END 
+		}
+	</insert>
+	
+	<update id="updateAgentResetUpdateContent">
+		UPDATE TB_AGENTGROUPINFO SET 
+			SEND_DATE = NULL,
+			SEND_RESULT = 'N',
+			RECEIVED_DATE = NULL,
+			RECEIVED_RESULT = 'N',
+			RECEIVED_FILE_DATE = NULL, 
+			RECEIVED_FILE_RESULT = 'N'
+		WHERE CONSCH_CODE = #{conschCode}
+	</update>
+	
+	<update id="updateAgentSendUpdate" parameterType="list">
+		<!--  여기 부분을 list updat 가능 한지 확인 -->
+		{CALL 
+			DECLARE
+			<foreach  item="agentGroupInfo" collection="list"  index="index"   separator=";" open="BEGIN" close="; END" >
+				UPDATE TB_AGENTGROUPINFO SET 
+					SEND_DATE = SYSDATE,
+					SEND_RESULT = #{agentGroupInfo.sendResult}
+				WHERE GROUP_SEQ = #{agentGroupInfo.groupSeq}
+			</foreach>
+		}
+	</update>
+	
+	<update id="updateAgentReceivedUpdate">
+		UPDATE TB_AGENTGROUPINFO SET 
+			RECEIVED_DATE = SYSDATE,
+			RECEIVED_RESULT = #{receivedResult}
+		WHERE GROUP_SEQ = #{groupSeq}
+	</update> 
+	
+	<update id="updateAgentFileUpdate">
+		UPDATE TB_AGENTGROUPINFO SET 
+			RECEIVED_FILE_DATE = SYSDATE,
+			RECEIVED_FILE_RESULT = #{receivedFileResult}
+		WHERE GROUP_SEQ = #{groupSeq}
+	</update> 
+	
+	<delete id="deleteAgentGroupInfo">
+		{CALL
+			DECLARE 
+			BEGIN
+				UPDATE TB_CONTENTSCHEDULE SET 
+					CONSCH_AGENTCNT = CONSCH_AGENTCNT - 1
+				WHERE CONSCH_CODE = 
+				(
+					SELECT CONSCH_CODE 
+					FROM TB_AGENTGROUPINFO 
+					WHERE GROUP_SEQ = #{groupSeq}
+				);
+					   
+				DELETE 
+				FROM TB_AGENTGROUPINFO 
+				WHERE GROUP_SEQ = #{groupSeq};
+			END
+		}
+	</delete>
+</mapper>

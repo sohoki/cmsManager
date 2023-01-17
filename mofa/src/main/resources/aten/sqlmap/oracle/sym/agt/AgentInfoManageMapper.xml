@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aten.com.backoffice.sym.agent.mapper.AgentInfoManageMapper">
+
+	<select id="selectAgentPageInfoManageListByPagination" resultType="AgentInfoVO">
+		SELECT TB.*
+		FROM 
+		(
+			SELECT SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT,
+			ROWNUM RNUM, X.*
+			FROM 
+			(
+				SELECT 
+					A.AGENT_CODE, A.AGENT_NM, A.AGENT_REMARK, A.AGENT_IP, A.AGENT_MAC, A.AGENT_USEYN,
+					CASE A.AGENT_CONTENTGUBUN 
+						WHEN 'AGENT_CONTENT_1' THEN A.DISPLAY_SEQ
+						ELSE
+						(
+							SELECT D.DISPLAY_SEQ
+							FROM TB_CONTENTSCHEDULE B, TB_AGENTGROUPINFO C, TB_DISPLAYPAGEINFO D
+							WHERE B.CONSCH_CODE = C.CONSCH_CODE
+							AND D.DISPLAY_SEQ = B.DISPLAY_SEQ
+							AND C.AGENT_CODE = A.AGENT_CODE
+							AND TO_CHAR(SYSDATE, 'yyyyMMdd') BETWEEN B.CONSCH_STARTDAY AND B.CONSCH_ENDDAY
+						)
+					END AS displaySeq,
+					CASE A.AGENT_CONTENTGUBUN 
+						WHEN 'AGENT_CONTENT_1' THEN
+						(
+							SELECT DISPLAY_TITLE 
+							FROM TB_DISPLAYPAGEINFO B 
+							WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ
+						)
+						ELSE
+						(
+							SELECT D.DISPLAY_TITLE
+							FROM TB_CONTENTSCHEDULE B, TB_AGENTGROUPINFO C, TB_DISPLAYPAGEINFO D
+							WHERE B.CONSCH_CODE = C.CONSCH_CODE 
+							AND D.DISPLAY_SEQ = B.DISPLAY_SEQ
+							AND C.AGENT_CODE = A.AGENT_CODE
+							AND TO_CHAR(SYSDATE, 'yyyyMMdd') BETWEEN B.CONSCH_STARTDAY AND B.CONSCH_ENDDAY
+						)
+					END AS displayTitle,
+					CASE A.AGENT_CONTENTGUBUN 
+						WHEN 'AGENT_CONTENT_1' THEN
+						(
+							SELECT DISPALY_TOTALTIME 
+							FROM TB_DISPLAYPAGEINFO B 
+							WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ
+						)
+						ELSE
+						(
+							SELECT D.DISPALY_TOTALTIME
+							FROM TB_CONTENTSCHEDULE B, TB_AGENTGROUPINFO C, TB_DISPLAYPAGEINFO D
+							WHERE B.CONSCH_CODE = C.CONSCH_CODE 
+							AND D.DISPLAY_SEQ = B.DISPLAY_SEQ
+							AND C.AGENT_CODE = A.AGENT_CODE
+							AND TO_CHAR(SYSDATE, 'yyyyMMdd') BETWEEN B.CONSCH_STARTDAY AND B.CONSCH_ENDDAY
+						)
+					END AS displayTotalTime,
+					FN_AGENTSTATE_NOWSTATE(A.AGENT_CODE) AS agentStateInfo, A.AGENT_FLOOR, FN_DETAILCODENM(A.AGENT_GUBUN) AS agentGubun, A.AGENT_STARTTIME AS agentStarttime, A.AGENT_ENDTIME AS agentEndtime,
+					FN_DETAILCODENM(A.AGENT_CONTENTGUBUN) AS contentGubun, A.AGENT_STATE, TO_CHAR(A.CONN_DATE,'YYYY-MM-DD HH24:MI:SS') AS CONN_DATE, C.CENTER_NM
+				FROM TB_AGENTINFO A, TB_CENTERINFO C
+				WHERE A.CENTER_ID = C.CENTER_ID
+				<if test="searchKeyword != ''">
+					<choose>
+						<when test="searchCondition == 'agentNm'">
+							AND A.AGENT_NM LIKE '%' || #{searchKeyword} || '%'
+						</when>
+						<when test="searchCondition == 'disSeq'">
+							AND A.DISPLAY_SEQ = #{searchKeyword}
+						</when>
+						<otherwise>
+							AND A.AGENT_REMARK LIKE '%' || #{searchKeyword} || '%'
+						</otherwise>
+					</choose>
+				</if>
+				<if test="searchDisplayseq != ''">
+					AND A.DISPLAYSEQ = #{searchDisplayseq}
+				</if>
+				<if test="searchAgentgubun != ''">
+					AND A.AGENT_CONTENTGUBUN = #{searchAgentgubun}
+				</if>
+		
+				<if test="searchNotDisplayseq != ''">
+					AND A.DISPLAYSEQ != #{searchDisplayseq}
+				</if>
+				<if test="searchCenterid != ''">
+					AND A.CENTER_ID = #{searchCenterid}
+					<if test="searchFloor != ''">
+						AND A.AGENT_FLOOR = #{searchFloor}
+					</if>
+				</if>
+				<if test="searchAgentState != ''">
+					AND A.AGENT_STATE =#{searchAgentState}
+				</if>
+		
+				<if test="adminLevel == 'ROLE_ADMIN' and searchPartid != ''">
+					AND A.PART_ID = #{searchPartid}
+				</if>
+				<if test="adminLevel != 'ROLE_ADMIN'">
+					AND A.PART_ID IN 
+					(
+						SELECT PART_ID 
+						FROM TB_PARTINFO 
+						WHERE PART_ID = #{partId}
+						UNION ALL
+						SELECT PART_ID
+						FROM TB_PARTINFO
+						START WITH PARENT_PART_ID = #{partId}
+						CONNECT BY PRIOR PART_ID = PARENT_PART_ID
+					)
+				</if>
+				ORDER BY A.AGENT_CODE DESC
+			) X
+		)TB
+		WHERE TB.RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} +
+		#{recordCountPerPage}
+		<choose>
+			<when test="searchOrderGubun != ''">
+				ORDER BY TB.${searchOrderGubun} DESC
+			</when>
+			<otherwise>
+				ORDER BY TB.AGENT_CODE DESC
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="selectDisplayStageChangePageList" resultType="lmap">
+		SELECT TA.*
+		FROM 
+		(
+			SELECT TB.*
+			FROM 
+			(
+				SELECT 
+					SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT, ROWNUM RNUM, X.*
+				FROM 
+				(
+					SELECT a.DISPLAY_SEQ , a.AGENT_CODE , a.AGENT_NM, 'OT' AS PLAY_GUBUN
+					FROM TB_AGENTINFO a
+					WHERE a.DISPLAY_SEQ != #{params.displaySeq}
+					AND a.AGENT_CONTENTGUBUN = #{params.agentContentGubun}
+					<if
+						test="!@org.apache.commons.lang3.StringUtils@isEmpty(params.adminLevel)  ">
+						<if test="params.adminLevel != 'ROLE_ADMIN'">
+							AND a.PART_ID IN (
+							SELECT PART_ID FROM TB_PARTINFO where PART_ID = #{params.partId}
+							UNION ALL
+							SELECT PART_ID
+							FROM TB_PARTINFO
+							START WITH PARENT_PART_ID = #{params.partId}
+							CONNECT BY PRIOR PART_ID = PARENT_PART_ID
+							)
+						</if>
+					</if>
+					<if
+						test="!@org.apache.commons.lang3.StringUtils@isEmpty(params.agentNm)">
+						AND AGENT_NM LIKE '%' || #{params.agentNm} || '%'
+					</if>
+				) X
+			)TB
+			WHERE TB.RNUM BETWEEN #{params.leftFirstIndex} + 1 AND #{params.leftFirstIndex} + #{params.recordCountPerPage}
+			UNION ALL
+			SELECT TB.*
+			FROM 
+			(
+				SELECT 
+					SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT, ROWNUM RNUM, X.*
+				FROM 
+				(
+					SELECT 
+						A.DISPLAY_SEQ, A.AGENT_CODE, A.AGENT_NM, 'IN' AS PLAY_GUBUN
+					FROM TB_AGENTINFO A, TB_DISPLAYPAGEINFO B
+					WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ
+					AND A.DISPLAY_SEQ = #{params.displaySeq}
+					AND A.AGENT_CONTENTGUBUN = #{params.agentContentGubun}
+					<if test="!@org.apache.commons.lang3.StringUtils@isEmpty(params.adminLevel)  ">
+						<if test="params.adminLevel != 'ROLE_ADMIN'">
+							AND A.PART_ID IN 
+							(
+								SELECT PART_ID 
+								FROM TB_PARTINFO 
+								WHERE PART_ID = #{params.partId}
+								UNION ALL
+								SELECT PART_ID
+								FROM TB_PARTINFO
+								START WITH PARENT_PART_ID = #{params.partId}
+								CONNECT BY PRIOR PART_ID = PARENT_PART_ID
+							)
+						</if>
+					</if>
+					<if
+						test="!@org.apache.commons.lang3.StringUtils@isEmpty(params.agentNm)">
+						AND AGENT_NM LIKE '%' || #{params.agentNm} || '%'
+					</if>
+				) X
+			)TB
+			WHERE TB.RNUM BETWEEN #{params.rightFirstIndex} + 1 AND #{params.rightFirstIndex} + #{params.recordCountPerPage}
+		)TA
+		ORDER BY TA.PLAY_GUBUN DESC, TA.AGENT_NM ASC
+	</select>
+
+	<select id="selectAgentNowStateInnfo" resultType="AgentInfoVO">
+		SELECT 
+			X1.agentCnt, X1.agentState, X1.CENTER_NM, X1.tCnt, ROUND(((X1.agentCnt/X1.TCnt)*100),2) AS statePer
+		FROM 
+		(
+			SELECT 
+				NVL(COUNT(X.AGENT_STATE),0) AS agentCnt, NVL(X.AGENT_STATE, 'F') AS agentState, X.CENTER_NM, X.CENTER_ID, X.TCnt,
+				X.AGENT_STATE
+			FROM 
+			(
+				SELECT 
+					AGENT_STATE, B.CENTER_NM, A.CENTER_ID, SUM(1) OVER(PARTITION BY NULL) AS TCnt
+				FROM TB_AGENTINFO A, TB_CENTERINFO B
+				WHERE A.CENTER_ID = B.CENTER_ID
+				AND A.AGENT_USEYN = 'Y'
+				AND A.CENTER_ID = #{centerId}
+			) X
+			GROUP BY X.CENTER_NM , X.CENTER_ID, X.TCnt , X.AGENT_STATE
+		) X1
+	</select>
+	
+	<select id="selectAgentCenterPageList" resultType="AgentInfoVO">
+		SELECT 
+			SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT, A.AGENT_NM, A.AGENT_REMARK, A.AGENT_IP, A.AGENT_MAC,
+			B.DISPLAY_TITLE, A.AGENT_FLOOR, FN_AGENTSTATE(A.AGENT_CODE, #{errorCnt}) AS agentStateInfo
+		FROM TB_AGENTINFO A, TB_DISPLAYPAGEINFO B
+		WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ
+		AND A.CENTER_ID = #{centerId}
+		ORDER BY A.AGENT_FLOOR ASC, A.AGENT_CODE ASC
+	</select>
+	
+	<select id="selectAgentPageInfoManageDetail" resultType="AgentInfoVO">
+		SELECT 
+			A.AGENT_CODE, A.AGENT_NM, A.AGENT_REMARK, A.AGENT_IP, A.AGENT_MAC, A.DISPLAY_SEQ,
+			A.AGENT_USEYN, A.FRST_REGIST_PNTTM, A.FRST_REGISTER_ID, A.LAST_UPDT_PNTTM, A.LAST_UPDUSR_ID,
+			A.AGENT_STARTTIME, A.AGENT_ENDTIME, A.AGENT_FLOOR AS agentFloor, A.AGENT_GUBUN AS agentGubun, A.CENTER_ID, 
+			A.PART_ID, A.AGENT_CONTENTGUBUN
+		FROM TB_AGENTINFO A
+		WHERE A.AGENT_CODE = #{agentCode}
+	</select>
+	
+	<select id="selectAgentPageInfoManageView" resultType="AgentInfoVO">
+		SELECT 
+			A.AGENT_CODE, A.AGENT_NM, A.AGENT_REMARK, A.AGENT_IP, A.AGENT_MAC, 
+			A.AGENT_USEYN,
+			CASE A.AGENT_CONTENTGUBUN 
+				WHEN 'AGENT_CONTENT_1' THEN A.DISPLAY_SEQ
+				ELSE
+				(
+					SELECT D.DISPLAY_SEQ
+					FROM TB_CONTENTSCHEDULE B, TB_AGENTGROUPINFO C, TB_DISPLAYPAGEINFO D
+					WHERE B.CONSCH_CODE = C.CONSCH_CODE 
+					AND D.DISPLAY_SEQ = B.DISPLAY_SEQ
+					AND C.AGENT_CODE = A.AGENT_CODE
+					AND TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN B.CONSCH_STARTDAY AND B.CONSCH_ENDDAY
+				)
+			END AS displaySeq,
+			CASE A.AGENT_CONTENTGUBUN 
+				WHEN 'AGENT_CONTENT_1' THEN
+				(
+					SELECT DISPLAY_TITLE 
+					FROM TB_DISPLAYPAGEINFO B 
+					WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ
+				)
+				ELSE
+				(
+					SELECT d.DISPLAY_TITLE
+					FROM TB_CONTENTSCHEDULE B, TB_AGENTGROUPINFO C, TB_DISPLAYPAGEINFO D
+					WHERE B.CONSCH_CODE = C.CONSCH_CODE 
+					AND D.DISPLAY_SEQ = B.DISPLAY_SEQ
+					AND C.AGENT_CODE = A.AGENT_CODE
+					AND TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN B.CONSCH_STARTDAY AND B.CONSCH_ENDDAY
+				)
+			END AS displayTitle,
+			A.FRST_REGIST_PNTTM, A.FRST_REGISTER_ID, A.LAST_UPDT_PNTTM, A.LAST_UPDUSR_ID, FN_DETAILCODENM(A.AGENT_GUBUN) AS OSTYPE,
+			A.AGENT_GUBUN, A.AGENT_STARTTIME, A.AGENT_ENDTIME, A.AGENT_FLOOR, C.CENTER_NM,
+			D.PART_NM, A.CENTER_ID, A.PART_ID, A.AGENT_CONTENTGUBUN, FN_DETAILCODENM(A.AGENT_CONTENTGUBUN) AS contentGubun, FN_AGENTSTATE_NOWSTATE(A.AGENT_CODE) AS agentStateInfo
+		FROM TB_AGENTINFO A, TB_CENTERINFO C, TB_PARTINFO D
+		WHERE A.CENTER_ID = C.CENTER_ID
+		AND A.PART_ID = D.PART_ID
+		AND A.AGENT_CODE = #{agentCode}
+	</select>
+	
+	<select id="selectAgentPageInfoManageListTotCnt_S" resultType="java.lang.Integer">
+		SELECT NVL(COUNT(*),0)
+		FROM TB_AGENTINFO A, TB_DISPLAYPAGEINFO B
+		WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ
+		<if test="searchKeyword != ''">
+			<choose>
+				<when test="searchCondition == 'agentNm'">
+					AND A.AGENT_NM LIKE #{searchKeyword} || '%'
+				</when>
+				<when test="searchCondition == 'disSeq'">
+					AND A.DISPLAY_SEQ = #{searchKeyword}
+				</when>
+				<otherwise>
+					AND A.AGENT_REMARK LIKE #{searchKeyword} || '%'
+				</otherwise>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="selectDisplayCheck" resultType="java.lang.String">
+		SELECT NVL(COUNT(*),0)
+		FROM TB_AGENTINFO
+		WHERE DISPLAY_SEQ = 
+		(
+			SELECT DISPLAY_SEQ 
+			FROM TB_AGENTINFO 
+			WHERE AGENT_NM = #{agentNm} AND AGENT_MAC = #{agentMac}
+		)
+		AND UPDATE_CHANGE = 'N'
+	</select>
+	
+	<select id="selectAgentExist" resultType="java.lang.Integer">
+		SELECT NVL(COUNT(*),0)
+		FROM TB_AGENTINFO
+		WHERE AGENT_CODE = #{agentCode}
+	</select>
+	
+	<select id="selectAgentUrlCheck" resultType="AgentInfoVO">
+		SELECT 
+			AGENT_CODE, AGENT_NM,AGENT_MAC, UPDATE_CHANGE,UPDATE_DATE,AGENT_CONTENTGUBUN
+		FROM TB_AGENTINFO
+		WHERE AGENT_CODE = #{agentCode} 
+		AND AGENT_MAC = #{agentMac}
+	</select>
+
+	<insert id="insertAgentPageInfoManage">
+		INSERT INTO TB_AGENTINFO
+		(
+			AGENT_CODE, AGENT_NM, AGENT_REMARK, AGENT_IP, AGENT_MAC,
+			DISPLAY_SEQ, AGENT_USEYN, FRST_REGIST_PNTTM, FRST_REGISTER_ID, LAST_UPDT_PNTTM,
+			LAST_UPDUSR_ID, CENTER_ID, PART_ID, AGENT_GUBUN, AGENT_STARTTIME, 
+			AGENT_ENDTIME, AGENT_FLOOR, AGENT_CONTENTGUBUN
+		)
+		VALUES 
+		(
+			#{agentCode}, #{agentNm}, #{agentRemark, jdbcType=VARCHAR}, #{agentIp, jdbcType=VARCHAR}, #{agentMac, jdbcType=VARCHAR}, 
+			#{displaySeq, jdbcType=INTEGER}, #{agentUseYn, jdbcType=VARCHAR}, SYSDATE, #{userId, jdbcType=VARCHAR}, SYSDATE,
+			#{userId, jdbcType=VARCHAR}, #{centerId, jdbcType=VARCHAR}, #{partId, jdbcType=VARCHAR}, #{agentGubun, jdbcType=VARCHAR},
+			#{agentStarttime, jdbcType=VARCHAR}, #{agentEndtime, jdbcType=VARCHAR}, #{agentFloor, jdbcType=INTEGER}, #{agentContentgubun, jdbcType=VARCHAR}
+		)
+	</insert>
+	
+	<update id="updateAgentIpMac">
+		UPDATE TB_AGENTINFO SET 
+			AGENT_IP = #{agentIp,jdbcType=VARCHAR},
+			AGENT_MAC = #{agentMac,jdbcType=VARCHAR }
+		WHERE AGENT_CODE = #{agentCode}
+	</update>
+	
+	<update id="updateAgentState">
+		UPDATE TB_AGENTINFO A SET 
+			A.AGENT_STATE = 
+			(
+				SELECT 
+					CASE 
+						WHEN (B.CONN_DATE - 5/24/60) > SYSDATE THEN 'N'
+						WHEN (B.CONN_DATE + 10/24/60) > SYSDATE THEN 'C'
+						ELSE 'F' 
+					END AGENT_STATE
+				FROM TB_AGENTINFO B 
+				WHERE A.AGENT_CODE = B.AGENT_CODE
+			)
+	</update>
+	
+	<update id="updateAgentDisplayChange">
+		{CALL
+			DECLARE
+			BEGIN
+				<choose>
+					<when test="mode == 'Edt'">
+						UPDATE TB_AGENTINFO SET 
+							UPDATE_CHANGE = 'N',
+							DISPLAY_SEQ = #{displaySeq},
+							UPDATE_DATE = NULL
+						WHERE AGENT_CODE = #{agentCode};
+					</when>
+					<otherwise>
+						UPDATE TB_AGENTINFO SET 
+							UPDATE_CHANGE = 'N', 
+							DISPLAY_SEQ = 0, 
+							UPDATE_DATE = NULL
+						WHERE AGENT_CODE = #{agentCode};
+					</otherwise>
+				</choose>
+			END
+		}
+	</update>
+	
+	<update id="updateAgentUrlRec">
+		UPDATE TB_AGENTINFO SET 
+			UPDATE_CHANGE = #{updateChange},
+			UPDATE_DATE = SYSDATE
+		WHERE AGENT_CODE = #{agentCode}
+	</update>
+	
+	<!-- 여기 구문 확인해 보기 -->
+	<update id="updateDisplayUpdate">
+		UPDATE TB_DISPLAYPAGEINFO SET 
+			UPDATE_CHANGE = #{updateChange}, 
+			UPDATE_DATE = SYSDATE
+		WHERE DISPLAY_SEQ = 
+		(
+			SELECT DISPLAY_SEQ 
+			FROM TB_AGENTINFO 
+			WHERE AGENT_CODE = #{agentCode} 
+			AND AGENT_MAC = #{agentMac} 
+		)
+	</update>
+	
+	<update id="updateAgentPageInfoManage">
+		UPDATE TB_AGENTINFO SET 
+			AGENT_NM = #{agentNm}, 
+			AGENT_REMARK = #{agentRemark, jdbcType=VARCHAR}, 
+			DISPLAY_SEQ = #{displaySeq, jdbcType=INTEGER}, 
+			AGENT_USEYN = #{agentUseYn, jdbcType=VARCHAR}, 
+			LAST_UPDT_PNTTM = SYSDATE, 
+			LAST_UPDUSR_ID = #{userId, jdbcType=VARCHAR}, 
+			CENTER_ID = #{centerId, jdbcType=VARCHAR}, 
+			PART_ID = #{partId, jdbcType=VARCHAR}, 
+			AGENT_STARTTIME = #{agentStarttime, jdbcType=VARCHAR},
+			AGENT_ENDTIME = #{agentEndtime, jdbcType=VARCHAR},
+			AGENT_FLOOR = #{agentFloor, jdbcType=INTEGER}, 
+			AGENT_GUBUN = #{agentGubun, jdbcType=VARCHAR}, 
+			AGENT_CONTENTGUBUN = #{agentContentgubun, jdbcType=VARCHAR}
+		WHERE AGENT_CODE = #{agentCode}
+	</update>
+	
+	<update id="updateAgentStateUpdate">
+		UPDATE TB_AGENTINFO SET
+			UPDATE_CHANGE = 'N', 
+			UPDATE_DATE = NULL
+		WHERE DISPLAY_SEQ = #{displaySeq}
+	</update>
+	
+	<delete id="deleteAgentPageInfoManage">
+		DELETE 
+		FROM TB_AGENTINFO 
+		WHERE AGENT_CODE = #{agentCode}
+	</delete>
+</mapper>

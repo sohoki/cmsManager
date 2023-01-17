@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aten.com.backoffice.sym.monter.mapper.DetailPageInfoManageMapper">
+	<select id="selectDetailPageInfoManageListByPagination" resultType="lmap">     
+		SELECT TB.* FROM 
+		(     
+			SELECT 
+				SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT,
+				ROWNUM RNUM, X.* 
+			FROM
+			(
+				SELECT 
+					A.DETAIL_SEQ, A.DISPLAY_SEQ, A.REPORT_SEQ, A.DETAIL_SORT, A.DETAIL_TIME,
+					B.REPORT_TITLE, B.REPORT_GUBUN,
+					CASE B.REPORT_GUBUN
+						WHEN 'reportGubun_3' THEN REPLACE(B.REPORT_URL, #{replacePath}, '') || B.REPORT_DC
+						WHEN 'reportGubun_4' THEN REPLACE(B.REPORT_URL, #{replacePath}, '') || B.REPORT_PREVIEW
+					ELSE B.REPORT_URL
+					END REPORT_URL,
+					CASE B.REPORT_GUBUN 
+						WHEN 'reportGubun_3' THEN  
+						(
+							SELECT ATCH_FILE_ID|| ',' || NVL(FILE_WIDTH, '') || ',' || NVL(FILE_HEIGHT, '') || ',' || NVL(PLAY_TIME, '') 
+							FROM LETTNFILEDETAIL C 
+							WHERE C.STRE_FILE_NM = B.REPORT_DC
+						)
+						WHEN 'reportGubun_4' THEN  
+						(
+							SELECT ATCH_FILE_ID || ',' || NVL(FILE_WIDTH, '') ||  ',' || NVL(FILE_HEIGHT, '') || ',' || NVL(PLAY_TIME, '')
+							FROM LETTNFILEDETAIL C 
+							WHERE C.STRE_FILE_NM  = B.REPORT_DC
+						)
+						ELSE REPORT_PREVIEW
+					END REPORT_PREVIEW
+				FROM TB_DISPLAYDETAIL A, TB_REPORTINFO B
+				WHERE DISPLAY_SEQ = #{displaySeq}
+				AND A.REPORT_SEQ = B.REPORT_SEQ
+				ORDER BY A.DETAIL_SORT ASC
+			) X
+		) TB
+		ORDER BY TB.DETAIL_SORT ASC      		 	    
+	</select>
+	
+	<select id="selectDetailPageInfoManageListByContent" resultType="lmap">  
+		SELECT 
+			SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT,
+			TB.* 
+		FROM 
+		(
+			SELECT 
+				X.*, C.FILE_WIDTH, C.FILE_HEIGHT,
+				CASE 
+					WHEN LOWER(C.FILE_EXTSN) IN ('mp4', 'avi', 'mpeg') THEN 'MEDIA'
+					WHEN LOWER(C.FILE_EXTSN) IN ('jpg', 'jpeg', 'gif', 'png', 'bmp') THEN 'IMAGE'
+					WHEN LOWER(C.FILE_EXTSN) IN ('mp3', 'wav', 'mid') THEN 'MUSIC'
+					ELSE 'URL'
+				END AS mediaType
+			FROM 
+			(
+				SELECT 
+					A.DETAIL_SEQ, A.DISPLAY_SEQ, A.REPORT_SEQ, A.DETAIL_SORT, A.DETAIL_TIME,
+					B.REPORT_TITLE, B.REPORT_GUBUN, B.REPORT_DC, REPLACE(B.REPORT_URL, #{replacePath}, '') AS REPORT_URL
+				FROM TB_DISPLAYDETAIL A, TB_REPORTINFO B
+				WHERE DISPLAY_SEQ = #{displaySeq}
+				AND A.REPORT_SEQ = B.REPORT_SEQ
+				ORDER BY A.DETAIL_SORT DESC
+			)
+			X LEFT JOIN LETTNFILEDETAIL C ON X.REPORT_DC = C.STRE_FILE_NM
+			ORDER BY X.DETAIL_SORT ASC
+		) TB 
+	</select>
+   
+	<select id="selectDisplaySeqReturn" parameterType="java.util.List" resultType="java.lang.String">
+		SELECT DISPLAY_SEQ 
+		FROM TB_DISPLAYDETAIL 
+		WHERE 1=1
+		<choose>
+			<when test="list.size != 0">
+				AND REPORT_SEQ IN 
+				<foreach collection="list" item="item" index="index" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+            </when>
+        </choose>
+		GROUP BY DISPLAY_SEQ ORDER BY DISPLAY_SEQ ASC
+	</select>
+   
+	<select id="selectAgentPreviewList"  resultType="lmap">
+		SELECT 
+			C.DETAIL_SEQ, D.REPORT_TITLE, C.DETAIL_SORT, C.DETAIL_TIME, B.DISPALY_PAGECNT, 
+			D.REPORT_GUBUN,
+			CASE D.REPORT_GUBUN 
+				WHEN 'reportGubun_3' THEN REPLACE(D.REPORT_URL, #{replacePath}, '') || D.REPORT_DC
+				WHEN 'reportGubun_4' THEN REPLACE(D.REPORT_URL, #{replacePath}, '') || D.REPORT_DC
+				ELSE D.REPORT_URL
+			END REPORT_URL
+		FROM TB_AGENTINFO A, TB_DISPLAYPAGEINFO B, TB_DISPLAYDETAIL C, TB_REPORTINFO D
+		WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ AND B.DISPLAY_SEQ = C.DISPLAY_SEQ
+		AND C.REPORT_SEQ = D.REPORT_SEQ      
+		AND A.AGENT_CODE = #{agentCode}
+		ORDER BY C.DETAIL_SORT ASC  
+	</select>
+   
+	<select id="selectDisPlayPreviewList"  resultType="lmap">
+        SELECT SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT, TB.*  
+        FROM 
+        (    
+			SELECT 
+				A.DETAIL_SEQ, A.DISPLAY_SEQ, B.REPORT_TITLE, A.DETAIL_SORT, A.DETAIL_TIME,
+				B.REPORT_GUBUN,
+				CASE B.REPORT_GUBUN 
+					WHEN 'reportGubun_3' THEN REPLACE(B.REPORT_URL, #{replacePath}, '') || B.REPORT_DC
+					WHEN 'reportGubun_4' THEN REPLACE(B.REPORT_URL, #{replacePath}, '') || B.REPORT_DC
+					ELSE B.REPORT_URL
+				END REPORT_URL, C.DISPALY_PAGECNT
+			FROM TB_DISPLAYDETAIL A, TB_REPORTINFO B, TB_DISPLAYPAGEINFO C
+			WHERE A.DISPLAY_SEQ = #{displaySeq}
+			AND A.REPORT_SEQ = B.REPORT_SEQ
+			AND A.DISPLAY_SEQ = C.DISPLAY_SEQ
+			ORDER BY A.DETAIL_SORT DESC
+		) TB
+		ORDER BY TB.DETAIL_SORT ASC    
+	</select>
+   
+	<select id="selectDetailPageInfoManageListTotCnt_S" resultType="java.lang.Integer">
+		SELECT NVL(COUNT(*),0)      
+	    FROM TB_DISPLAYDETAIL A
+	    WHERE DISPLAY_SEQ = #{displaySeq} 				    	     
+	</select>
+
+	<select id="selectDetailSumTime" resultType="java.lang.Integer">
+		SELECT NVL(SUM(DETAIL_TIME),0)       
+		FROM TB_DISPLAYDETAIL A
+	    WHERE DISPLAY_SEQ = #{displaySeq} 				    	     
+	</select>
+   
+	<select id="selectDetailMaxSort" resultType="java.lang.Integer">
+        SELECT NVL((MAX(DETAIL_SORT)+1),1)       
+	    FROM TB_DISPLAYDETAIL A
+	    WHERE DISPLAY_SEQ = #{displaySeq} 	        			    	     
+	</select>
+
+	<select id="selectDetailInfo" resultType="lmap">  
+		SELECT 
+			A.DETAIL_SEQ, A.DISPLAY_SEQ, A.REPORT_SEQ, A.DETAIL_SORT, A.DETAIL_TIME,
+			B.REPORT_TITLE
+        FROM TB_DISPLAYDETAIL A, TB_REPORTINFO B       
+       	WHERE A.DETAIL_SEQ = #{detailSeq}
+		AND A.REPORT_SEQ = B.REPORT_SEQ
+	</select>
+   
+	<insert id="insertDetailPageInfoManage">
+		{CALL 
+			DECLARE 
+			BEGIN 
+				INSERT INTO TB_DISPLAYDETAIL                                                
+				(                                                                           
+					DETAIL_SEQ, DISPLAY_SEQ, REPORT_SEQ, DETAIL_SORT, DETAIL_TIME,          
+					FRST_REGIST_PNTTM, FRST_REGISTER_ID, LAST_UPDT_PNTTM, LAST_UPDUSR_ID    
+				)                                                                           
+				VALUES                                                                      
+				(                                                                           
+					SQ_DETAILSEQ.NEXTVAL, #{displaySeq}, #{reportSeq},                      
+					<!-- DETAIL_SORT -->                                                    
+					(                                                                       
+						SELECT NVL((MAX(DETAIL_SORT)+1),1)                                  
+						FROM TB_DISPLAYDETAIL A                                             
+						WHERE DISPLAY_SEQ = #{displaySeq}                                   
+					),                                                                      
+					<!-- DETAIL_TIME -->                                                    
+					(                                                                       
+						SELECT                                                              
+							CASE A.REPORT_GUBUN                                             
+								WHEN 'reportGubun_4' THEN                                   
+								(                                                           
+									SELECT NVL(PLAY_TIME, 1)                                
+									FROM LETTNFILEDETAIL B                                  
+									WHERE B.REPORT_SEQ = A.REPORT_SEQ                       
+								)                                                           
+								ELSE '1'                                                    
+							END AS PLAY_TIME                                                
+						FROM TB_REPORTINFO A                                                
+						WHERE A.REPORT_SEQ = #{reportSeq}                                   
+					),                                                                      
+					SYSDATE, #{userId,jdbcType=VARCHAR}, SYSDATE, #{userId,jdbcType=VARCHAR}
+				);                                                                          
+                                                                            
+				UPDATE TB_DISPLAYPAGEINFO SET                                               
+					DISPALY_PAGECNT =                                                       
+					(                                                                       
+						SELECT NVL(COUNT(*),0)                                              
+						FROM TB_DISPLAYDETAIL                                               
+						WHERE DISPLAY_SEQ = #{displaySeq}                                   
+					),                                                                      
+					DISPALY_TOTALTIME =                                                     
+					(                                                                       
+						SELECT NVL(SUM(X.displayTime),0)                                    
+						FROM                                                                
+						(                                                                   
+							SELECT NVL(DETAIL_TIME,0) AS DISPLAYTIME                        
+							FROM TB_DISPLAYDETAIL                                           
+							WHERE DISPLAY_SEQ = #{displaySeq}                               
+						) X                                                                 
+					)                                                                       
+				WHERE DISPLAY_SEQ = #{displaySeq};                                          
+			END	                                                                        				
+		}
+	</insert>
+   
+   	<update id="updateDetailPageInfoManage">
+		UPDATE TB_DISPLAYDETAIL SET 
+			DETAIL_SORT = #{detailSort,jdbcType=VARCHAR},
+			DETAIL_TIME = #{detailTime,jdbcType=VARCHAR},
+			LAST_UPDT_PNTTM = SYSDATE,
+			LAST_UPDUSR_ID = #{userId,jdbcType=VARCHAR}
+		WHERE DETAIL_SEQ = #{detailSeq}
+	</update>
+	
+	<update id="updateDetailTimeChangeManage">
+		{CALL 
+        	DECLARE 
+			BEGIN 
+				UPDATE TB_DISPLAYDETAIL SET 
+					DETAIL_TIME = #{detailTime,jdbcType=VARCHAR}
+				WHERE DETAIL_SEQ = #{detailSeq};
+		      
+				UPDATE TB_DISPLAYPAGEINFO SET 
+					DISPALY_PAGECNT = 
+					(
+						SELECT NVL(COUNT(*),0) 
+						FROM TB_DISPLAYDETAIL 
+						WHERE DISPLAY_SEQ = #{displaySeq}
+					), 
+					DISPALY_TOTALTIME = 
+					(
+						SELECT NVL(SUM(DETAIL_TIME),0) 
+						FROM TB_DISPLAYDETAIL 
+						WHERE DISPLAY_SEQ = #{displaySeq}
+					)
+		      	WHERE DISPLAY_SEQ = #{displaySeq};
+			END
+		}
+	</update>
+   
+	<update id="updateDetailSortOrderUpDownSubInfoManage">      
+		{CALL 
+			DECLARE 
+			BEGIN 
+				<choose>
+					<when test="mode == 'UP'">
+						<![CDATA[
+							UPDATE TB_DISPLAYDETAIL SET DETAIL_SORT = DETAIL_SORT + 1
+							WHERE DETAIL_SEQ = 
+							( 
+								SELECT DETAIL_SEQ FROM 
+								(
+									SELECT DETAIL_SEQ FROM TB_DISPLAYDETAIL 
+									WHERE DETAIL_SORT < 
+									(
+										SELECT DETAIL_SORT FROM TB_DISPLAYDETAIL 
+										WHERE DETAIL_SEQ = #{detailSeq}
+									) 
+									AND DISPLAY_SEQ = #{displaySeq} ORDER BY DETAIL_SORT DESC 
+								) X 
+								WHERE ROWNUM  = 1
+							);
+							
+							UPDATE TB_DISPLAYDETAIL SET DETAIL_SORT = DETAIL_SORT - 1 
+							WHERE DETAIL_SEQ = #{detailSeq};
+						]]>
+					</when>
+					<otherwise>
+						<![CDATA[
+				    		UPDATE TB_DISPLAYDETAIL SET DETAIL_SORT = DETAIL_SORT - 1
+							WHERE DETAIL_SEQ = 
+							( 
+								SELECT DETAIL_SEQ FROM 
+								(
+									SELECT DETAIL_SEQ FROM TB_DISPLAYDETAIL 
+									WHERE DETAIL_SORT > 
+									(
+										SELECT DETAIL_SORT FROM TB_DISPLAYDETAIL 
+										WHERE DETAIL_SEQ = #{detailSeq}
+									) 
+									AND DISPLAY_SEQ = #{displaySeq} ORDER BY DETAIL_SORT ASC 
+								) X 
+								WHERE ROWNUM  = 1
+							);
+						
+							UPDATE TB_DISPLAYDETAIL SET DETAIL_SORT = DETAIL_SORT + 1 
+							WHERE DETAIL_SEQ = #{detailSeq};
+						]]>
+					</otherwise>
+				</choose>
+			END
+		}
+	</update>
+   
+   <!-- <update id="updateDetailSortOrderDownSubInfoManage">
+           {call 
+            declare 
+	             begin 
+				     <![CDATA[
+				        UPDATE TB_DISPLAYDETAIL SET DETAIL_SORT = DETAIL_SORT - 1
+						WHERE DETAIL_SEQ = 
+						( 
+							SELECT DETAIL_SEQ FROM 
+							(
+								SELECT DETAIL_SEQ FROM TB_DISPLAYDETAIL 
+								WHERE DETAIL_SORT > 
+								(
+									SELECT DETAIL_SORT FROM TB_DISPLAYDETAIL 
+									WHERE DETAIL_SEQ = #{detailSeq}
+								) 
+								AND DISPLAY_SEQ = #{displaySeq} ORDER BY DETAIL_SORT ASC 
+							) X 
+							WHERE ROWNUM  = 1
+						);
+						
+						UPDATE TB_DISPLAYDETAIL SET DETAIL_SORT = DETAIL_SORT + 1 
+						WHERE DETAIL_SEQ = #{detailSeq};
+						
+						]]>
+				 end 
+			}
+   </update> -->
+   
+	<update id="updateDisplayPageChangeInfo" parameterType="java.util.List">
+		UPDATE TB_DISPLAYPAGEINFO AA, 
+		(
+			SELECT 
+				NVL(COUNT(*),0) DISPALY_PAGECNT, 
+				NVL(SUM(B.DETAIL_TIME),0) 
+				DISPALY_TOTALTIME,
+				'N' UPDATE_CHANGE, 
+				NULL UPDATE_DATE,
+				A.DISPLAY_SEQ
+			FROM TB_DISPLAYPAGEINFO A, TB_DISPLAYDETAIL B, TB_REPORTINFO C
+			WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ 
+			AND A.DISPLAY_SEQ IN 
+			<foreach collection="list" item="item" index="index" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+			AND C.REPORT_SEQ = B.REPORT_SEQ
+			GROUP BY A.DISPLAY_SEQ
+		) BB 
+		SET 
+			AA.DISPALY_PAGECNT = BB.DISPALY_PAGECNT,
+			AA.DISPALY_TOTALTIME = BB.DISPALY_TOTALTIME,
+			AA.UPDATE_CHANGE = BB.UPDATE_CHANGE,
+			AA.UPDATE_DATE = BB.UPDATE_DATE 
+		WHERE AA.DISPLAY_SEQ = BB.DISPLAY_SEQ
+	</update>
+   
+	<update id="updateDitailOrderUpdatePage"  parameterType="list">
+		{
+			CALL 
+            	DECLARE
+            		<foreach  item="detailPageInfo" collection="list"  index="index"   separator=";" open="BEGIN" close="; END" >
+                 		UPDATE TB_DISPLAYDETAIL SET 
+                 			DETAIL_SORT = #{detailPageInfo.detailSort}
+                 		WHERE DETAIL_SEQ = #{detailPageInfo.detailSeq} 
+                 		AND DISPLAY_SEQ = #{detailPageInfo.displaySeq}
+           			</foreach>
+		}
+   </update> 
+   
+	<delete id="deleteDetailPageInfoManage">
+		{CALL 
+			DECLARE 
+			BEGIN 
+				DELETE FROM TB_DISPLAYDETAIL   
+				WHERE DETAIL_SEQ = #{detailSeq};
+				    
+				UPDATE TB_DISPLAYPAGEINFO SET 
+					DISPALY_PAGECNT = 
+					(
+						SELECT NVL(COUNT(*),0) 
+						FROM TB_DISPLAYDETAIL 
+						WHERE DISPLAY_SEQ = #{displaySeq}
+					),
+					DISPALY_TOTALTIME = 
+					(
+						SELECT NVL(SUM(DETAIL_TIME),0) 
+						FROM TB_DISPLAYDETAIL 
+						WHERE DISPLAY_SEQ = #{displaySeq}
+					)
+				WHERE DISPLAY_SEQ = #{displaySeq} ;
+			END 
+		}
+	</delete>
+   
+	<delete id="deleteDetailReportSeq" parameterType="java.util.List">
+		DELETE FROM TB_DISPLAYDETAIL  
+		WHERE REPORT_SEQ IN 
+		<foreach collection="list" item="item" index="index" open="(" separator="," close=")">
+			#{item}
+		</foreach>     
+	</delete>
+</mapper>

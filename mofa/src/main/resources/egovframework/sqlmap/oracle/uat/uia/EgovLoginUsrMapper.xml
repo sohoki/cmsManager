@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="egovframework.com.mapper.LoginUsrManageMapper">
+   <select id="selectactionLogin" resultType="AdminLoginVO">  
+       <![CDATA[  
+   	       SELECT a.ADMIN_ID AS adminId
+			     , a.ADMIN_NAME AS adminName			     
+			     , a.PART_ID AS partId
+			     , a.ADMIN_PASSWORD AS adminPassword				     
+			     , b.PART_NM AS partNm
+			     , a.ADMIN_EMAIL AS adminEmail
+			     , a.ADMIN_TEL AS adminTel			     
+			     , a.ADMIN_LEVEL  AS adminLevel
+			     , TO_CHAR( ADD_MONTHS(a.UPDATE_PASSWORD, 2),'yyyyMMdd') updatePassword
+			  FROM  TB_MANAGERINFO a,  TB_PARTINFO b
+			 WHERE ADMIN_ID = #{adminId} AND a.PART_ID = b.PART_ID
+			   AND ADMIN_PASSWORD = #{adminPassword}
+			   AND LOCK_YN = 'N'
+			   AND USE_YN = 'Y'
+	    ]]>
+   </select>
+</mapper>

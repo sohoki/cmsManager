@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="egovframework.mofa.moniter.page.app.mapper.AppInfoManagerMapper">
+    <select id="selectApp01"  resultType="StateInfo">
+            <!-- SELECT  COUNT(a.CNSL_TYP_LRGCLAS_CD), a.CNSL_TYP_LRGCLAS_CD , a.INFW_CHNL_CD , 'IN'
+			FROM seize.V_CNSL_HIST a,  seize.V_CVAP_PROC_HIST b
+			WHERE substr(a.REG_DTM, 1,8) = TO_CHAR(SYSDATE, 'yyyyMMdd')
+			       AND a.CNSL_ID = b.CNSL_ID 
+			       AND b.TRTM_MTTR_CD = '003'
+                   AND b.IN_OUT_DV_CD = 'IN'  
+			GROUP BY a.CNSL_TYP_LRGCLAS_CD , b.RSLT_CD, a.INFW_CHNL_CD
+			UNION ALL 
+			SELECT  COUNT(a.CNSL_TYP_LRGCLAS_CD), a.CNSL_TYP_LRGCLAS_CD , a.INFW_CHNL_CD, 'OT'
+			FROM seize.V_CNSL_HIST a,  seize.V_CVAP_PROC_HIST b
+			WHERE substr(a.REG_DTM, 1,8) = TO_CHAR(SYSDATE, 'yyyyMMdd')
+			       AND a.CNSL_ID = b.CNSL_ID 
+			       AND b.TRTM_MTTR_CD = '003'  
+                   AND b.IN_OUT_DV_CD = 'OT'
+			GROUP BY a.CNSL_TYP_LRGCLAS_CD , b.RSLT_CD, a.INFW_CHNL_CD -->
+			
+			SELECT  COUNT(a.CNSL_TYP_LRGCLAS_CD) typeCnt, a.CNSL_TYP_LRGCLAS_CD as inType  , 'IN' as typeGubun
+			FROM seize.V_CNSL_HIST a,  seize.V_CVAP_PROC_HIST b
+			WHERE substr(a.REG_DTM, 1,8) = TO_CHAR(SYSDATE, 'yyyyMMdd')
+			       AND a.CNSL_ID = b.CNSL_ID 
+			       AND b.TRTM_MTTR_CD = '003'
+                   AND b.IN_OUT_DV_CD = 'IN'  
+			GROUP BY a.CNSL_TYP_LRGCLAS_CD , b.RSLT_CD
+			UNION ALL 
+			SELECT  COUNT(a.CNSL_TYP_LRGCLAS_CD) typeCnt, a.CNSL_TYP_LRGCLAS_CD  as inType, 'OT' as typeGubun
+			FROM seize.V_CNSL_HIST a,  seize.V_CVAP_PROC_HIST b
+			WHERE substr(a.REG_DTM, 1,8) = TO_CHAR(SYSDATE, 'yyyyMMdd')
+			       AND a.CNSL_ID = b.CNSL_ID 
+			       AND b.TRTM_MTTR_CD = '003'  
+                   AND b.IN_OUT_DV_CD = 'OT'
+			GROUP BY a.CNSL_TYP_LRGCLAS_CD , b.RSLT_CD
+    </select>
+    <select id="selectApp02"  resultType="StateInfo">
+            SELECT COUNT(a.CNSL_TYP_LRGCLAS_CD) as  typeCnt , 'TOD'  as typeGubun, a.INFW_CHNL_CD as inType
+			FROM seize.V_CNSL_HIST a,  seize.V_CVAP_PROC_HIST b
+			WHERE  SUBSTR(a.REG_DTM, 1,8) = TO_CHAR(SYSDATE, 'yyyyMMdd')
+			       AND a.CNSL_ID = b.CNSL_ID 
+			       AND b.TRTM_MTTR_CD = '003'
+			       AND a.INFW_CHNL_CD IN ('02', '03')
+			GROUP BY   a.INFW_CHNL_CD
+			UNION ALL
+			SELECT COUNT(a.CNSL_TYP_LRGCLAS_CD)  as  typeCnt, 'YES'  as typeGubun, a.INFW_CHNL_CD as inType
+			FROM seize.V_CNSL_HIST a,  seize.V_CVAP_PROC_HIST b
+			WHERE  SUBSTR(a.REG_DTM, 1,8) = TO_CHAR(SYSDATE -1 , 'yyyyMMdd')
+			       AND a.CNSL_ID = b.CNSL_ID 
+			       AND b.TRTM_MTTR_CD = '003'
+			       AND a.INFW_CHNL_CD IN ('02', '03')        
+			GROUP BY   a.INFW_CHNL_CD     
+    </select>
+  </mapper>

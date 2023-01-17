@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd">
+    
+    <bean id="dataSourceLog4j" class="net.sf.log4jdbc.Log4jdbcProxyDataSource">
+        <constructor-arg ref="dataSource-oracle" />
+        <!-- <constructor-arg ref="dataSource-mysql" /> -->
+        <property name="logFormatter">
+            <bean class="net.sf.log4jdbc.tools.Log4JdbcCustomFormatter">
+                <property name="loggingType" value="MULTI_LINE" />
+                <property name="sqlPrefix" value="SQL::  &#xD;&#xA;&#009;"/>
+            </bean>
+        </property>
+    </bean>
+    
+    <!-- Mybatis -->
+	<bean id="sqlSession" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSourceLog4j" />
+		<property name="configLocation" value="classpath:/egovframework/sqlmap/mybatis/${Globals.DbType}-config.xml" />
+		<property name="mapperLocations">
+		      <array>
+		          <value>classpath:/egovframework/sqlmap/${Globals.DbType}/**/*Mapper.xml</value>
+		          <value>classpath:/aten/sqlmap/${Globals.DbType}/**/*Mapper.xml</value>
+		          <value>classpath:/egovframework/sqlmap/moniter/oracle_basic/*Mapper.xml</value>
+		      </array>
+		</property>
+	</bean>
+	
+	<bean class="egovframework.rte.psl.dataaccess.mapper.MapperConfigurer">
+		<property name="basePackage" value="aten.**.mapper,  egovframework.com.**.mapper,  egovframework.mofa.**.oracle.mapper" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSession" />
+	</bean>
+	
+	
+	<!-- 신규 구문 -->
+    <bean id="dataSourceLog4j_app" class="net.sf.log4jdbc.Log4jdbcProxyDataSource">
+        <constructor-arg ref="dataSource-oracle_app" />
+        <property name="logFormatter">
+            <bean class="net.sf.log4jdbc.tools.Log4JdbcCustomFormatter">
+                <property name="loggingType" value="MULTI_LINE" />
+                <property name="sqlPrefix" value="SQL::  &#xD;&#xA;&#009;"/>
+            </bean>
+        </property>
+    </bean>
+	
+	<bean id="sqlSession_app" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSourceLog4j_app" />
+		<property name="configLocation" value="classpath:/egovframework/sqlmap/mybatis/app-oracle-config.xml" />
+		<property name="mapperLocations">
+		      <array>
+		          <value>classpath:/egovframework/sqlmap/moniter/oracle_app/*Mapper.xml</value>
+		      </array>
+		</property>
+	</bean>
+	<bean class="egovframework.rte.psl.dataaccess.mapper.MapperConfigurer">
+		<property name="basePackage" value="egovframework.mofa.moniter.page.app.mapper" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSession_app" />
+	</bean>
+	
+	
+	<bean id="dataSourceLog4j_mysql" class="net.sf.log4jdbc.Log4jdbcProxyDataSource">
+        <constructor-arg ref="dataSource-mysql" />
+        <property name="logFormatter">
+            <bean class="net.sf.log4jdbc.tools.Log4JdbcCustomFormatter">
+                <property name="loggingType" value="MULTI_LINE" />
+                <property name="sqlPrefix" value="SQL::  &#xD;&#xA;&#009;"/>
+            </bean>
+        </property>
+    </bean>   	
+	<bean id="sqlSession_maria" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSourceLog4j_mysql" />
+		<property name="configLocation" value="classpath:/egovframework/sqlmap/mybatis/mysql-config.xml" />
+		<property name="mapperLocations">
+		      <array>
+		          <value>classpath:/egovframework/sqlmap/moniter/mysql/*Mapper.xml</value>
+		      </array>
+		</property>
+	</bean>
+	<bean class="egovframework.rte.psl.dataaccess.mapper.MapperConfigurer">
+		<property name="basePackage" value="egovframework.mofa.moniter.page.mysql.mapper" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSession_maria" />
+	</bean>
+
+</beans>	

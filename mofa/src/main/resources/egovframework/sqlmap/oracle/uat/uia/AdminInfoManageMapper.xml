@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="egovframework.com.mapper.AdminInfoManagerMapper">
+
+   <select id="selectAdminUserManageListByPagination" resultType="AdminInfoVO">     	      
+		 	    SELECT * FROM ( 
+		 	             SELECT SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT,
+		 	                        rownum RNUM, TB.* FROM 
+		 	             (
+									    SELECT
+												      a.ADMIN_ID  "adminId",
+										              a.ADMIN_NAME  "adminName",
+										              a.ADMIN_TEL  "adminTel",
+							                          a.ADMIN_EMAIL  "adminEmail",
+										              a.PART_ID   "partId",
+										              CASE a.LOCK_YN when 'Y' then 'O'
+							                               ELSE 'X'
+							                          END as lockYn,
+							                          CASE a.Use_YN WHEN 'Y' then 'O'
+							                               ELSE 'X'
+							                          END as UseYn,		
+							                          TO_CHAR(a.REG_DATE, 'yyyy-MM-dd')  regDate	,              
+										              c.AUTHOR_NM "deptLevel",
+										              a.EMP_NO,
+							                          CASE a.ADMIN_LEVEL WHEN 'ROLE_ADMIN'  THEN '관리자'
+							                          ELSE (SELECT NVL(PART_NM , '없음') FROM TB_PARTINFO b WHERE b.PART_ID = a.PART_ID)
+							                          END partNm		
+									    FROM   TB_MANAGERINFO a , LETTNAUTHORINFO c
+										WHERE   a.ADMIN_LEVEL = c.AUTHOR_CODE
+											        <if test="searchKeyword != ''">
+															<choose>
+																<when test="searchCondition == 'adminId'">
+																	and a.ADMIN_ID LIKE #{searchKeyword} || '%'
+																</when>
+																<otherwise>
+																	and a.ADMIN_NAME LIKE #{searchKeyword} || '%'
+																</otherwise>
+															</choose>
+													</if>		        
+													<if test="useYn != ''">
+													         and a.USE_YN = #{useYn}
+													</if>		     
+									        ORDER BY a.REG_DATE  DESC
+	                 ) 
+	            TB 
+	         ) 
+	         WHERE RNUM  BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}         		 	    
+   </select>
+      
+   <select id="selectAdminUserManageDetail" resultType="AdminInfoVO">
+	     SELECT ADMIN_ID, ADMIN_PASSWORD, ADMIN_NAME, USE_YN, PART_ID, ADMIN_EMAIL, ADMIN_TEL, ADMIN_LEVEL, UPDATE_PASSWORD, 
+	                LOCK_YN, USE_YN, EMP_NO, REG_DATE
+	     FROM TB_MANAGERINFO
+	     WHERE ADMIN_ID = #{adminId}
+   </select>
+   <select id="selectAdminUserManageListTotCnt_S" resultType="java.lang.Integer">
+            SELECT  NVL(count(*),0)      
+		    FROM   TB_MANAGERINFO a , LETTNAUTHORINFO c
+			WHERE  a.ADMIN_LEVEL = c.AUTHOR_CODE    
+	        <if test="searchKeyword != ''">
+					<choose>
+						<when test="searchCondition == 'adminId'">
+							AND a.ADMIN_ID LIKE #{searchKeyword} || '%'
+						</when>
+						<otherwise>
+							AND a.ADMIN_NAME LIKE #{searchKeyword} || '%'
+						</otherwise>
+					</choose>
+			</if>		        
+			<if test="useYn != ''">
+			         AND a.USE_YN = #{useYn}
+			</if>		     
+   </select>
+   
+   <select id="selectAdminUserMangerIDCheck" resultType="java.lang.Integer">
+            SELECT  NVL(count(*),0)      
+		    FROM   TB_MANAGERINFO
+		    WHERE  ADMIN_ID = #{adminId}
+   </select>
+   
+   <insert id="insertAdminUserManage">
+	       INSERT INTO TB_MANAGERINFO( ADMIN_ID, ADMIN_PASSWORD, ADMIN_NAME, USE_YN, PART_ID,  ADMIN_EMAIL, 
+	       ADMIN_TEL, REG_DATE, UPDATE_PASSWORD, ADMIN_LEVEL, LOCK_YN, EMP_NO)
+	       VALUES (#{adminId}, #{adminPassword}, #{adminName}, #{useYn}, #{partId,jdbcType=VARCHAR },  #{adminEmail ,jdbcType=VARCHAR},
+	       #{adminTel ,jdbcType=VARCHAR}, sysdate, sysdate, #{adminLevel ,jdbcType=VARCHAR}, 'N' , #{empNo ,jdbcType=VARCHAR}  )
+   </insert>
+   <update id="updateAdminUserManage">
+	      UPDATE TB_MANAGERINFO set ADMIN_NAME = #{adminName}
+	                                                  ,  USE_YN = #{useYn}
+	                                                  ,  PART_ID = #{partId }
+	                                                  ,  ADMIN_EMAIL = #{adminEmail, jdbcType=VARCHAR }
+	                                                  ,  ADMIN_TEL = #{adminTel, jdbcType=VARCHAR }
+	                                                  ,  ADMIN_LEVEL = #{adminLevel , jdbcType=VARCHAR }
+	                                                  <if test="adminPassword != ''">
+	                                                  , ADMIN_PASSWORD = #{adminPassword}
+	                                                  , UPDATE_PASSWORD = sysdate
+	                                                  , LOCK_YN ='N'
+	                                                  </if> 
+	                                                  <if test="empNo != ''">
+	                                                  ,  EMP_NO = #{empNo, jdbcType=VARCHAR }
+	                                                  </if>
+	      WHERE ADMIN_ID = #{adminId}
+   </update>
+   <update id="updatePassChange">
+	       UPDATE TB_MANAGERINFO SET ADMIN_PASSWORD = #{adminPassword}
+	                                                   , UPDATE_PASSWORD = sysdate
+	       WHERE  ADMIN_ID = #{adminId} 
+   </update>
+   <update id="updateAdminUserLockManage">
+          UPDATE TB_MANAGERINFO SET LOCK_YN = 'Y'
+          WHERE ADMIN_ID = #{adminId}
+   </update>
+   <delete id="deleteAdminUserManage">
+	      DELETE FROM TB_MANAGERINFO
+	      WHERE ADMIN_ID = #{adminId}   
+   </delete>
+   
+</mapper>
+

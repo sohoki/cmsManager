@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="egovframework.mofa.moniter.page.mysql.mapper.StaticManagerMapper">
+
+    <select id="selectMariaPageUni01"  resultType="StateInfo">
+           select skill_no AS skillNo, staff_agent, avail_agent, aux_agent, busy_agent, acw_agent, inacd_calls, acd_calls,                      
+                    abn_calls, acd_rate, wait_calls
+           from v_wallboard_skill
+    </select>
+    <select id="selectPageMariaUni02"  resultType="StateInfo">
+            select  in_calls, ars_calls, abn_calls, inacd_calls, acd_calls, acd_rate
+			from v_wallboard_center
+    </select>
+    <select id="selectMariaPageUni03"  resultType="StateInfo">
+            select agentId AS  agentId, login_time, avail_time, acd_time, ans_time, acd_calls, aux1_time, aux2_time, aux3_time, acw_time, avail_agent
+			from v_mini_wallboard_agent
+    </select>
+    <select id="selectMariaPageUni04" resultType="StateInfo">
+            SELECT wall_calls, aux_agent, en_wait, ch_wait, ja_wait, fr_wait, ru_wait, sp_wait, ar_wait
+            from v_mini_wallboard_wait
+    </select>
+</mapper>
+

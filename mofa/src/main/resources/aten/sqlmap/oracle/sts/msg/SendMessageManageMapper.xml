@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aten.com.backoffice.sts.message.mapper.SendMessageManageMapper">
+	<select id="selectSendMessageAgentList" resultType="lmap">
+		SELECT 
+			A.SCH_CODE, B.* 
+		FROM
+		<!-- B -->
+		(
+			SELECT X.AGENT_CODE, X.AGENT_NM, X.AGENT_REMARK, X.AGENT_FLOOR, C.CENTER_NM, X.AGENT_USEYN
+			FROM TB_AGENTINFO X, TB_CENTERINFO C
+			WHERE X.CENTER_ID = C.CENTER_ID
+		) 
+		B 
+		LEFT OUTER JOIN
+		<!-- A -->  
+		(
+			SELECT
+				 A.SCH_CODE, A.AGENT_CODE 
+			FROM TB_SENDMESSAGEINFO A
+			WHERE SCH_CODE = #{schCode}
+		) 
+		A  
+		ON A.AGENT_CODE = B.AGENT_CODE 
+		WHERE B.AGENT_USEYN ='Y' 
+		<if test="adminLevel != 'ROLE_ADMIN'">
+			AND B.PART_ID= #{partId}
+		</if> 
+		ORDER BY B.AGENT_REMARK ASC
+	</select>
+	
+	<select id="selectSendMessageAgentHistoryList" resultType="SendMessageInfoVO">
+		SELECT TB.* 
+		FROM 
+		(
+			SELECT 
+				SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT, ROWNUM RNUM, X.* 
+			FROM 
+			(
+				SELECT
+					B.AGENT_CODE, A.SCH_CODE, A.SEND_MSGSEQ, C.SCH_MESSAGE, C.SCH_FONTTYPE, A.MSG_SEND,
+					A.MSG_SENDREGDATE, A.MSG_RECCHECK, A.MSG_RECUPDATE
+				FROM TB_SENDMESSAGEINFO A , TB_AGENTINFO B, TB_SCHEDULEINFO C
+				WHERE B.AGENT_USEYN ='Y' AND A.AGENT_CODE = B.AGENT_CODE 
+				AND C.SCH_CODE = A.SCH_CODE
+				AND A.AGENT_CODE = #{agentCode}
+				ORDER BY A.SEND_MSGSEQ ASC
+			) X
+		) TB 
+		WHERE RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}     
+		ORDER BY TB.SEND_MSGSEQ DESC  	
+	</select>
+     
+	<insert id="insertSendMessage">
+		{
+			CALL
+				DECLARE
+				BEGIN		                    
+					DELETE FROM TB_SENDMESSAGEINFO
+					WHERE SCH_CODE = #{schCode} AND AGENT_CODE IN 
+					(
+						SELECT AGENT_CODE 
+						FROM TB_AGENTINFO 
+						WHERE AGENT_CODE NOT IN 
+						<foreach collection="agentCodeLst" item="item" index="index" open="(" separator="," close=")">
+							#{item}
+						</foreach>
+					);
+								                  
+					INSERT INTO TB_SENDMESSAGEINFO
+					(
+						SEND_MSGSEQ, SCH_CODE,AGENT_CODE, MSG_SEND, MSG_SENDREGDATE, MSG_RECCHECK, MSG_RECUPDATE
+					)
+					SELECT 
+						SQ_SENDMSGSEQ.NEXTVAL, #{schCode}, b.AGENT_CODE, 'Y', SYSDATE, 'N', NULL  
+					FROM TB_AGENTINFO B LEFT OUTER JOIN 
+					(
+						SELECT A.SCH_CODE, A.AGENT_CODE 
+						FROM TB_SENDMESSAGEINFO A
+						WHERE SCH_CODE =  #{schCode}
+					) A ON  A.AGENT_CODE = B.AGENT_CODE
+					WHERE A.SCH_CODE IS NULL
+						<choose>
+							<when test="agentCodeLst.size != 0">
+								AND B.AGENT_CODE IN 
+								<foreach collection="agentCodeLst" item="item" index="index" open="(" separator="," close=")">
+									#{item}
+								</foreach>
+							</when>
+						</choose> 
+					;
+				END
+		}             
+	</insert>
+    
+	<update id="updateSendMessage">
+		UPDATE TB_SENDMESSAGEINFO SET 
+			MSG_RECCHECK = 'N',
+			MSG_RECUPDATE = NULL
+		WHERE SCH_CODE = #{schCode}
+	</update>
+    
+	<update id="updateSendMessageAgent">
+        UPDATE TB_SENDMESSAGEINFO SET 
+        	MSG_RECCHECK = #{msgRecCheck},
+        	MSG_RECUPDATE = SYSDATE
+        WHERE SCH_CODE = #{schCode} 
+        AND AGENT_CODE = #{agentCode}
+	</update>
+    
+    <delete id="deleteSendMessageAgent">
+		DELETE 
+		FROM TB_SENDMESSAGEINFO
+		WHERE SCH_CODE = #{schCode} 
+		AND AGENT_CODE IN 
+		(
+			SELECT AGENT_CODE 
+			FROM TB_AGENTINFO 
+			WHERE AGENT_CODE NOT IN 
+			<foreach collection="agentCodeLst" item="item" index="index" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		);
+	</delete>
+    
+    <delete id="deleteSendMessage">
+		DELETE FROM TB_SENDMESSAGEINFO 
+        WHERE 1=1  
+		<if test="schCode != ''">
+			AND SCH_CODE = #{schCode}
+		</if>
+		<if test="sendMsgSeq != ''">
+			AND SEND_MSGSEQ = #{sendMsgSeq}
+		</if>
+	</delete>
+</mapper>

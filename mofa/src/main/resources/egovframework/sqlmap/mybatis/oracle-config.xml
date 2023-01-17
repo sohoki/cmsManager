@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	<settings>		
+		<setting name="mapUnderscoreToCamelCase" value="true" />		
+		<setting name="lazyLoadingEnabled" value="true" />
+		<setting name="cacheEnabled" value="true"/>		
+	</settings>
+	
+	<!-- 전자정부 프레임워크 공통 Alias 정의-->	
+	<typeAliases>
+	    <typeAlias alias="lmap" type="aten.com.backoffice.util.service.LowerKeyMap"/>
+	    <package name="egovframework.com.cmm"/>
+	    <package name="egovframework.com.cmm.service"/>
+	    <package name="egovframework.let.uat.uia.service"/>
+		<package name="aten.com.backoffice.sym.ccm.cca.service"/>
+	    <package name="aten.com.backoffice.sym.ccm.ccc.service"/>
+	    <package name="aten.com.backoffice.sym.ccm.cde.service"/>
+	        
+	    <package name="aten.com.backoffice.uat.vo"/>
+	    <package name="aten.com.backoffice.sts.cnt.vo"/>
+	    <package name="aten.com.backoffice.sts.sch.vo"/>
+	    <package name="aten.com.backoffice.sts.error.vo"/>
+	    <package name="aten.com.backoffice.sts.message.vo"/>
+	    <package name="aten.com.backoffice.sts.xml.vo"/>
+	    <package name="aten.com.backoffice.sts.report.vo"/>
+	    
+	    <package name="aten.com.backoffice.sym.rnt.vo"/>
+	    <package name="aten.com.backoffice.sym.monter.vo"/>
+	    <package name="aten.com.backoffice.sym.agent.vo"/>
+	    <package name="aten.com.backoffice.sym.state.vo"/>
+	    <package name="aten.com.backoffice.sym.cnt.vo"/>
+	    <package name="aten.com.backoffice.sym.log.vo"/>
+	    <package name="aten.com.backoffice.etc.rest.service"/>
+	    
+	    
+	    <package name="egovframework.mofa.moniter.page.vo"/>
+	</typeAliases>
+	  
+	
+    <!-- <typeHandlers>       
+       <typeHandler handler="egovframework.let.utl.fcc.service.OracleUsTypeHandler" javaType="java.lang.String"/>  
+    </typeHandlers> -->
+	
+</configuration>

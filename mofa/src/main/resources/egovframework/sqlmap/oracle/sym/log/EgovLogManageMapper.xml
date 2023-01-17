@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="egovframework.com.mapper.EgovLogManageMapper">
+   <select id="selectLoginLogInfo" resultType="lmap">
+            SELECT TB.* 
+		 	FROM (
+		 	           SELECT SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT,
+		 	                      ROWNUM RNUM, X.* 
+		 	           FROM (
+		 	                       SELECT a.LOG_ID, a.CONECT_ID, a.CONECT_IP, a.CONECT_MTHD, a.ERROR_OCCRRNC_AT, a.ERROR_CODE, CREAT_DT,
+		 	                                  b.ADMIN_NAME, c.PART_ID, c.PART_NM,
+		 	                                  CASE  a.CONECT_MTHD 
+		 	                                         WHEN 'I' then '로그인' 
+		 	                                         ELSE '로그아웃'
+		 	                                  END  CONECT_MTHDTXT
+		 	                       FROM COMTNLOGINLOG a, TB_MANAGERINFO b, TB_PARTINFO c
+		 	                       WHERE a.CONECT_ID = b.ADMIN_ID 
+		 	                                  AND b.PART_ID = c.PART_ID
+		 	                                  <if test="!@org.apache.commons.lang3.StringUtils@isEmpty(searchStartdday)">
+											  AND TO_CHAR(a.CREAT_DT, 'yyyyMMdd')  >= #{searchStartdday}
+											  </if>
+											  <if test="!@org.apache.commons.lang3.StringUtils@isEmpty(searchEndday)">
+											  <![CDATA[
+											  AND TO_CHAR(a.CREAT_DT, 'yyyyMMdd')  <= #{searchEndday}
+											  ]]>
+											  </if>
+											  <if test="!@org.apache.commons.lang3.StringUtils@isEmpty(searchKeyword)">
+											       <choose>
+															<when test="searchCondition == 'userNm'">
+																AND b.ADMIN_NAME LIKE '%' || #{searchKeyword} || '%'
+															</when>
+															<otherwise>
+																AND a.CONECT_ID LIKE  '%' || #{searchKeyword} || '%' 
+															</otherwise>
+														</choose>
+											</if>
+									ORDER BY a.LOG_ID DESC
+		 	                     )X
+	        )TB
+	        WHERE TB.RNUM  BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}  
+	        ORDER BY  TB.LOG_ID  DESC
+   </select>
+   <insert id="logInsertLoginLog">
+         INSERT INTO COMTNLOGINLOG(LOG_ID, CONECT_ID, CONECT_IP, CONECT_MTHD, ERROR_OCCRRNC_AT, ERROR_CODE, CREAT_DT)
+         VALUES (#{logId},  #{connectId}, #{connectIp}, #{connectMthd}, #{errorOccrrAt}, #{errorCode}, sysdate )
+   </insert>
+
+
+</mapper>

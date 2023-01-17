@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="egovframework.mofa.moniter.page.oracle.mapper.StaticMoniterManagerMapper">
+    <select id="selectPageUni01"  resultType="lmap">
+				SELECT * FROM (
+				WITH TEMP AS (
+				     SELECT SKILL_NO_REMARK1, '근무인원' AS TITLE_NM, 
+				            SUM(NVL(STAFF_AGENT,0)) AS STAFF_AGENT
+				     FROM TB_STATICINFO_01
+				     WHERE SKILL_NO_REMARK1 != 'MENU3'
+				     GROUP BY SKILL_NO_REMARK1
+				) SELECT * FROM TEMP
+				PIVOT(
+				      
+				      SUM (STAFF_AGENT)
+				      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+				      )    
+				)      
+				UNION ALL 
+				SELECT * FROM (
+				WITH TEMP AS (
+				     SELECT SKILL_NO_REMARK1, '대기인원'  AS TITLE_NM,
+				            SUM(NVL(AVAIL_AGENT,0)) AS AVAIL_AGENT
+				     FROM TB_STATICINFO_01
+				     WHERE SKILL_NO_REMARK1 != 'MENU3'
+				     GROUP BY SKILL_NO_REMARK1
+				) SELECT * FROM TEMP
+				PIVOT(
+				      SUM (AVAIL_AGENT)
+				      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+				      )    
+				)     
+				UNION ALL 
+				SELECT * FROM (
+				WITH TEMP AS (
+				     SELECT SKILL_NO_REMARK1, '이석'  AS TITLE_NM,
+				            SUM(NVL(AUX_AGENT,0)) AS AUX_AGENT
+				     FROM TB_STATICINFO_01
+				     WHERE SKILL_NO_REMARK1 != 'MENU3'
+				     GROUP BY SKILL_NO_REMARK1
+				) SELECT * FROM TEMP
+				PIVOT(
+				      SUM (AUX_AGENT)
+				      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+				      )    
+				)
+				UNION ALL 
+				SELECT * FROM (
+				WITH TEMP AS (
+				     SELECT SKILL_NO_REMARK1, '상담중'  AS TITLE_NM,
+				            SUM(NVL(BUSY_AGENT,0)) AS BUSY_AGENT
+				     FROM TB_STATICINFO_01
+				     WHERE SKILL_NO_REMARK1 != 'MENU3'
+				     GROUP BY SKILL_NO_REMARK1
+				) SELECT * FROM TEMP
+				PIVOT(
+				      SUM (BUSY_AGENT)
+				      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+				      )    
+				)
+				UNION ALL 
+				SELECT * FROM (
+				WITH TEMP AS (
+				     SELECT SKILL_NO_REMARK1, '후처리'  AS TITLE_NM,
+				            SUM(NVL(ACW_AGENT,0)) AS ACW_AGENT
+				     FROM TB_STATICINFO_01
+				     WHERE SKILL_NO_REMARK1 != 'MENU3'
+				     GROUP BY SKILL_NO_REMARK1
+				) SELECT * FROM TEMP
+				PIVOT(
+				      SUM (ACW_AGENT)
+				      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+				      )    
+				)
+    </select>
+    <select id="selectPageUni07"  resultType="lmap">
+               SELECT * FROM (
+					WITH TEMP AS (
+					     SELECT SKILL_NO_REMARK1,  '상담요청' AS TITLE_NM, 
+					            SUM(NVL(INACD_CALLS,0)) AS INACD_CALLS
+					     FROM TB_STATICINFO_01
+					     WHERE SKILL_NO_REMARK1 != 'MENU3'
+					     GROUP BY SKILL_NO_REMARK1
+					) SELECT * FROM TEMP
+					PIVOT(
+					      
+					      SUM (INACD_CALLS)
+					      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+					      )    
+				)      
+				UNION ALL 
+				SELECT * FROM (
+					WITH TEMP AS (
+					     SELECT SKILL_NO_REMARK1,  '응대호'  AS TITLE_NM,
+					            SUM(NVL(ACD_CALLS,0)) AS ACD_CALLS
+					     FROM TB_STATICINFO_01
+					     WHERE SKILL_NO_REMARK1 != 'MENU3'
+					     GROUP BY SKILL_NO_REMARK1
+					) SELECT * FROM TEMP
+					PIVOT(
+					      SUM (ACD_CALLS)
+					      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+					      )    
+				)     
+				UNION ALL 
+				SELECT * FROM (
+					WITH TEMP AS (
+					     SELECT SKILL_NO_REMARK1,  '포기호'  AS TITLE_NM,
+					            SUM(NVL(ABN_CALLS,0)) AS ABN_CALLS
+					     FROM TB_STATICINFO_01
+					     WHERE SKILL_NO_REMARK1 != 'MENU3'
+					     GROUP BY SKILL_NO_REMARK1
+					) SELECT * FROM TEMP
+					PIVOT(
+					      SUM (ABN_CALLS)
+					      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+					      )    
+				)
+				UNION ALL 
+				SELECT * FROM (
+					WITH TEMP AS (
+					     SELECT SKILL_NO_REMARK1, '응대율'  AS TITLE_NM, 
+	                            CASE SKILL_NO_REMARK1 WHEN 'MENU1'  THEN 
+	                               CASE WHEN (SELECT COUNT(*) FROM TB_STATICINFO_01 WHERE SKILL_NO_REMARK1 = 'MENU1') > 0 THEN 
+	                                 trunc(  SUM(TO_NUMBER(NVL(ACD_RATE,'0.0'))) /(SELECT COUNT(*) FROM TB_STATICINFO_01 WHERE SKILL_NO_REMARK1 = 'MENU1'), 1)
+	                               ELSE 
+	                                   0
+	                               END                                
+	                            ELSE
+	                               CASE WHEN (SELECT COUNT(*) FROM TB_STATICINFO_01 WHERE SKILL_NO_REMARK1 = 'MENU2') > 0 THEN 
+	                                 trunc(  SUM(TO_NUMBER(NVL(ACD_RATE,'0.0'))) /(SELECT COUNT(*) FROM TB_STATICINFO_01 WHERE SKILL_NO_REMARK1 = 'MENU2'), 1)
+	                               ELSE 
+	                                   0
+	                               END 
+	                            END AS  ACD_RATE
+					     FROM TB_STATICINFO_01
+					     WHERE SKILL_NO_REMARK1 != 'MENU3'
+					     GROUP BY SKILL_NO_REMARK1
+					) SELECT * FROM TEMP
+					PIVOT(
+					      SUM (TO_NUMBER(NVL(ACD_RATE,'0.0')))
+					      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+					      )                         
+                )
+				UNION ALL 
+				SELECT * FROM (
+					WITH TEMP AS (
+					     SELECT SKILL_NO_REMARK1, '현재대기호'  AS TITLE_NM,
+					            SUM(NVL(ACW_AGENT,0)) AS ACW_AGENT
+					     FROM TB_STATICINFO_01
+					     WHERE SKILL_NO_REMARK1 != 'MENU3'
+					     GROUP BY SKILL_NO_REMARK1
+					) SELECT * FROM TEMP
+					PIVOT(
+					      SUM (ACW_AGENT)
+					      FOR    SKILL_NO_REMARK1 IN ('MENU1' AS MENU1, 'MENU2' AS MENU2)
+					      )    
+				)
+    </select>
+    <select id="selectPageUni08"  resultType="lmap">
+          SELECT IN_CALLS, ARS_CALLS, ABN_CALLS, INACD_CALLS, ACD_CALLS, ACD_RATE
+          FROM TB_STATICINFO_02
+    </select>
+    <select id="selectPageUni02"  resultType="lmap">
+            SELECT SKILL_NO, SKILL_NO_REMARK, SKILL_NO_REMARK1, NVL(STAFF_AGENT,0) STAFF_AGENT, NVL(AVAIL_AGENT,0) AVAIL_AGENT, NVL(AUX_AGENT,0) AUX_AGENT, 
+			       NVL(BUSY_AGENT,0) BUSY_AGENT, NVL(ACW_AGENT,0) ACW_AGENT ,  NVL(INACD_CALLS,0) INACD_CALLS, 
+			       NVL(ACD_CALLS,0) ACD_CALLS, NVL(ABN_CALLS,0) ABN_CALLS, NVL(ACD_RATE, '0.0'), NVL(WAIT_CALLS,0) WAIT_CALLS
+			FROM TB_STATICINFO_01
+			WHERE SKILL_NO_REMARK1 = 'MENU2'
+                  AND SKILL_NO NOT IN ( '2', '28')
+			ORDER BY skill_no ASC
+			 
+    </select>
+    
+    <select id="selectPageUni03"  resultType="lmap">
+            SELECT AGENTID as agentId, TO_CHAR( LOGIN_TIME) LOGIN_TIME,  TO_CHAR(AVAIL_TIME) AVAIL_TIME,  
+                   TO_CHAR(ACD_TIME) ACD_TIME, 
+                   TO_CHAR(ANS_TIME) ANS_TIME,  TO_CHAR(ACD_CALLS) ACD_CALLS, 
+                   TO_CHAR(AUX1_TIME) AUX1_TIME,  TO_CHAR(AUX2_TIME) AUX2_TIME,  
+                   TO_CHAR(AUX3_TIME) AUX3_TIME,  TO_CHAR(ACW_TIME) ACW_TIME,  
+                   TO_CHAR(AVAIL_AGENT) AVAIL_AGENT
+			FROM TB_STATICINFO_03
+			WHERE AGENTID = #{agentId}
+    </select>
+    <select id="selectPageUni04"  resultType="lmap">
+            SELECT WALL_CALLS, AUX_AGENT, EN_WAIT, CH_WAIT, JA_WAIT, FR_WAIT, RU_WAIT, SP_WAIT, AR_WAIT
+			FROM TB_STATICINFO_04
+    </select>
+     <select id="selectPageUni05"  resultType="lmap">
+            SELECT TYPE_GUBUN, TYPE_CNT, TYPE_TOTALCNT
+			FROM TB_STATICINFO_05
+			ORDER BY TYPE_GUBUN ASC
+    </select>
+     <select id="selectPageUni06"  resultType="lmap">
+            SELECT  IN_TYPE, IN_TODAYCNT, IN_YESTERCNT,
+                        CASE IN_TYPE when '02' then 'mVoip'
+                        ELSE '카카오톡'
+                        END AS in_type_txt
+			FROM TB_STATICINFO_06
+			WHERE IN_TYPE IN ('02', '03')
+			ORDER BY IN_TYPE DESC
+    </select>
+    <!-- <insert id="insertPage01" parameterType="list"> -->
+    <insert id="insertPage01" >
+         <!--  {CALL 
+            DECLARE
+               <foreach  item="StateInfo" collection="list"  index="index"   separator=";" open="BEGIN" close="; END" > -->
+	                <selectKey resultType="int"  keyProperty="cnt" order="BEFORE">
+	                      SELECT NVL(COUNT(SKILL_NO),0)  as cnt
+	                      FROM TB_STATICINFO_01 
+	                      WHERE SKILL_NO = #{skillNo}
+                     </selectKey>
+                     <choose>
+                        <when test="cnt > 0">
+	                            UPDATE TB_STATICINFO_01 SET STAFF_AGENT = #{staffAgent}, 
+	                                                                   AVAIL_AGENT = #{availAgent},
+	                                                                   AUX_AGENT = #{auxAgent},
+	                                                                   BUSY_AGENT = #{busyAgent},
+	                                                                   ACW_AGENT = #{acwAgent},
+	                                                                   INACD_CALLS = #{inacdCalls},
+	                                                                   ACD_CALLS = #{acdCalls},
+	                                                                   ABN_CALLS = #{abnCalls},
+	                                                                   ACD_RATE = #{acdRate},
+	                                                                   WAIT_CALLS  = #{waitCalls},
+	                                                                   UPDATE_DATE = sysdate
+	                            WHERE SKILL_NO = #{skillNo}
+                        </when>
+                        <otherwise>
+                                INSERT INTO TB_STATICINFO_01(SKILL_NO, STAFF_AGENT, AVAIL_AGENT, AUX_AGENT, BUSY_AGENT, ACW_AGENT, 
+                                                                             INACD_CALLS, ACD_CALLS, ABN_CALLS, ACD_RATE, WAIT_CALLS) 
+                                VALUES(#{skillNo}, #{staffAgent}, #{availAgent}, #{auxAgent}, #{busyAgent}, #{acwAgent}, 
+                                           #{inacdCalls}, #{acdCalls}, #{abnCalls}, #{acdRate}, #{waitCalls} )
+                        </otherwise>
+                     </choose>
+	           <!-- </foreach>
+         }
+          -->
+    </insert>
+    <update id="updatePage02" >
+              UPDATE TB_STATICINFO_02 SET IN_CALLS = #{inCalls}, 
+                                                           ARS_CALLS = #{arsCalls},
+                                                           ABN_CALLS = #{abnCalls},
+                                                           INACD_CALLS = #{inacdCalls},
+                                                           ACD_CALLS = #{acdCalls},
+                                                          ACD_RATE = #{acdRate},
+                                                          UPDATE_DATE = sysdate
+    </update>
+    <!-- <insert id="insertPage03" parameterType="list"> -->
+    <insert id="insertPage03">
+         <!-- {CALL 
+            DECLARE
+                
+                <foreach  item="StateInfo" collection="list"  index="index"   separator=";" open="BEGIN" close="; END" > -->
+	            
+	                <selectKey resultType="int"  keyProperty="cnt" order="BEFORE">
+	                      SELECT NVL(COUNT(AGENTID),0)  as cnt
+	                      FROM TB_STATICINFO_03 
+	                      WHERE AGENTID = #{agentId}
+                     </selectKey>
+                     <choose>
+                        <when test="cnt > 0">
+	                            UPDATE TB_STATICINFO_03 SET LOGIN_TIME = #{loginTime}, 
+			                                                                 AVAIL_TIME = #{availTime},
+		                                                                     ACD_TIME = #{acdTime},
+		                                                                     ANS_TIME = #{ansTime},
+		                                                                     ACD_CALLS = #{acdCalls},
+		                                                                     AUX1_TIME = #{aux1Time},
+		                                                                     AUX2_TIME = #{aux2Time},
+		                                                                     AUX3_TIME = #{aux3Time},
+		                                                                     ACW_TIME = #{acwTime},
+		                                                                     AVAIL_AGENT  = #{availAgent},
+		                                                                     UPDATE_DATE = sysdate
+	                            WHERE AGENTID = #{agentId}
+                        </when>
+                        <otherwise>
+                                INSERT INTO TB_STATICINFO_03(AGENTID, LOGIN_TIME, AVAIL_TIME, ACD_TIME, ANS_TIME, ACD_CALLS, 
+                                                                             AUX1_TIME, AUX2_TIME, AUX3_TIME, ACW_TIME, AVAIL_AGENT) 
+                                VALUES( #{agentId}, #{loginTime}, #{availTime}, #{acdTime}, #{ansTime}, #{acdCalls}, 
+                                           #{aux1Time}, #{aux2Time}, #{aux3Time}, #{acwTime}, #{availAgent} )
+                        </otherwise>
+                     </choose>
+	           <!-- </foreach>
+         } -->
+    </insert>
+    <update id="updatePage04" >
+              UPDATE TB_STATICINFO_04 SET WALL_CALLS  = #{wallCalls},
+                                                           AUX_AGENT  = #{auxAgent},
+                                                           EN_WAIT  = #{enWait},
+                                                           CH_WAIT  = #{chWait},
+                                                           JA_WAIT  = #{jaWait},
+                                                           FR_WAIT  = #{frWait},
+                                                           RU_WAIT  = #{ruWait},
+                                                           SP_WAIT  = #{spWait},
+                                                           AR_WAIT  = #{arWait},
+                                                           UPDATE_DATE = sysdate
+    </update>
+    <update id="updatePage05">
+             UPDATE TB_STATICINFO_05 SET TYPE_CNT = #{typeCnt}	,UPDATE_DATE = sysdate		                             
+	         WHERE TYPE_GUBUN = #{inType}
+    </update>
+    <update id="updatePage05_1">
+             UPDATE TB_STATICINFO_05 SET TYPE_TOTALCNT = #{typeCnt}, UPDATE_DATE = sysdate
+	         WHERE TYPE_GUBUN = #{inType}
+    </update>
+    <update id="updatePage06">
+             UPDATE TB_STATICINFO_06 SET IN_TODAYCNT = #{typeCnt}, UPDATE_DATE = sysdate
+	         WHERE IN_TYPE = #{inType}
+    </update>
+    <update id="updatePage06_1">
+             UPDATE TB_STATICINFO_06 SET IN_YESTERCNT = #{typeCnt}, UPDATE_DATE = sysdate
+	         WHERE IN_TYPE = #{inType}
+    </update>
+</mapper>
+

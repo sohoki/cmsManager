@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aten.com.backoffice.sts.sch.mapper.ContentScheduleManagerMapper">
+	<select id="selectContentSchduleInfoManageListByPagination" resultType="ContentScheduleInfoVO">     	      
+		SELECT TB.* 
+		FROM 
+		(
+			SELECT 
+				SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT, ROWNUM RNUM, X.* 
+			FROM 
+			(
+				SELECT 
+					A.CONSCH_CODE, A.CONSCH_TITLE, A.CONSCH_STARTDAY, A.CONSCH_ENDDAY, B.DISPLAY_TITLE,
+					A.CONSCH_AGENTCNT, A.PART_ID, fn_partNm(NVL(A.PART_ID, 0)) partNm, A.FRST_REGIST_PNTTM, A.FRST_REGISTER_ID,
+					A.LAST_UPDT_PNTTM, A.LAST_UPDUSR_ID, A.CONSCH_UNISINKGUBUN, A.CONSCH_UNISINKCODE, A.CONSCH_UNISINKORDER,
+					fn_DetailCodeNm(A.CONSCH_UNISINKGUBUN) conschUnisinkgubunTxt, A.CONSCH_USEYN, B.DISPALY_PAGECNT, B.DISPALY_TOTALTIME, B.DISPLAY_GUBUN,
+					B.DISPLAY_SEQ
+				FROM TB_CONTENTSCHEDULE A , TB_DISPLAYPAGEINFO B
+				WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ
+				<if test="searchKeyword != ''">
+					<choose>
+						<when test="searchCondition != 'conschTitle' and searchCondition != ''">
+							AND B.DISPLAY_TITLE LIKE  '%' || #{searchKeyword}  || '%'
+						</when>
+						<otherwise>
+							AND A.CONSCH_TITLE LIKE '%' ||  #{searchKeyword} || '%'
+						</otherwise>
+					</choose>
+				</if>		
+				<if test="adminLevel != 'ROLE_ADMIN' and partId != '' ">
+					AND A.PART_ID = #{partId}
+				</if>				
+				<if test="displaySeq != ''">
+					AND A.DISPLAY_SEQ = #{displaySeq}
+				</if>    
+				ORDER BY A.CONSCH_CODE DESC
+			) X
+		) TB 
+		WHERE RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}     
+		ORDER BY TB.CONSCH_CODE DESC
+	</select>
+   
+	<select id="selectConetntSchduleInfoManageView" resultType="ContentScheduleInfoVO">
+		SELECT
+			A.CONSCH_CODE, A.CONSCH_TITLE, A.CONSCH_STARTDAY, A.CONSCH_ENDDAY, B.DISPLAY_SEQ,
+			B.DISPLAY_TITLE, A.CONSCH_AGENTCNT, A.PART_ID, fn_partNm(NVL(A.PART_ID, 0)) partNm, A.FRST_REGIST_PNTTM,
+			A.FRST_REGISTER_ID, A.LAST_UPDT_PNTTM, A.LAST_UPDUSR_ID, A.CONSCH_UNISINKGUBUN, A.CONSCH_UNISINKCODE, 
+			A.CONSCH_UNISINKORDER, A.CONSCH_USEYN, fn_DetailCodeNm(a.CONSCH_UNISINKGUBUN) conschUnisinkgubunTxt
+		FROM TB_CONTENTSCHEDULE A, TB_DISPLAYPAGEINFO B
+		WHERE A.DISPLAY_SEQ = B.DISPLAY_SEQ
+		AND A.CONSCH_CODE = #{schCode}
+	</select>
+   
+	<insert id="insertContentSchduleInfoManage">
+		INSERT INTO TB_CONTENTSCHEDULE
+		(
+			CONSCH_CODE, CONSCH_TITLE, CONSCH_STARTDAY, CONSCH_ENDDAY, DISPLAY_SEQ,
+			CONSCH_USEYN, CONSCH_AGENTCNT, PART_ID, FRST_REGIST_PNTTM, FRST_REGISTER_ID, 
+			LAST_UPDT_PNTTM, LAST_UPDUSR_ID, CONSCH_UNISINKGUBUN, CONSCH_UNISINKCODE, CONSCH_UNISINKORDER
+		)
+		VALUES 
+		(
+			#{conschCode}, #{conschTitle, jdbcType=VARCHAR}, #{conschStartday}, #{conschEndday}, #{displaySeq},
+			'Y', 0, #{partId,jdbcType=VARCHAR }, SYSDATE, #{userId,jdbcType=VARCHAR},
+			SYSDATE , #{userId,jdbcType=VARCHAR},
+			#{conschUnisinkgubun,jdbcType=VARCHAR }, #{conschUnisinkcode,jdbcType=VARCHAR }, #{conschUnisinkorder,jdbcType=VARCHAR }
+		)
+	</insert>
+   
+   	<update id="updateContentSchduleInfoManage">
+		UPDATE TB_CONTENTSCHEDULE SET 
+			CONSCH_TITLE = #{conschTitle}, 
+			CONSCH_STARTDAY = #{conschStartday}, 
+			CONSCH_ENDDAY = #{conschEndday},
+			DISPLAY_SEQ = #{displaySeq},
+			CONSCH_USEYN = #{conschUseyn,jdbcType=VARCHAR},
+			PART_ID = #{partId,jdbcType=VARCHAR},
+			LAST_UPDT_PNTTM = SYSDATE,
+			LAST_UPDUSR_ID = #{userId,jdbcType=VARCHAR},
+			CONSCH_UNISINKGUBUN = #{conschUnisinkgubun,jdbcType=VARCHAR},
+			CONSCH_UNISINKCODE = #{conschUnisinkcode,jdbcType=VARCHAR}, 
+			CONSCH_UNISINKORDER = #{conschUnisinkorder,jdbcType=VARCHAR}
+		WHERE CONSCH_CODE = #{conschCode}
+	</update>
+   
+   <delete id="deleteContentSchduleInfoManage">
+		DELETE 
+		FROM TB_CONTENTSCHEDULE
+		WHERE CONSCH_CODE = #{conschCode}   
+   </delete>
+</mapper>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aten.com.backoffice.mapper.DeviceInfoManageMapper">
+<select id="selectAgentPageInfoManageListByPagination" resultType="DeviceInfoVO">
+		SELECT SUM(1) OVER(PARTITION BY NULL) AS TOTAL_RECORD_COUNT,
+			TB.* FROM (
+				SELECT 
+					A.AGENT_CODE, A.AGENT_NM, A.AGENT_REMARK, A.AGENT_IP, A.AGENT_MAC, 
+					A.DISPLAY_SEQ, A.AGENT_USEYN,
+					(select DISPLAY_TITLE from tb_displaypageinfo b where a.DISPLAY_SEQ = b.DISPLAY_SEQ ) as displayTitle,
+					(select DISPALY_TOTALTIME from tb_displaypageinfo b where a.DISPLAY_SEQ = b.DISPLAY_SEQ ) as displayTotalTime,
+					FN_AgentState_nowState(a.AGENT_CODE) agentStateInfo,
+					a.AGENT_FLOOR, fn_DetailCodeNm(a.AGENT_GUBUN) as agentGubun,
+					CONCAT(a.agent_starttime,'~',agent_endtime) as agentStarttime,
+					fn_DetailCodeNm(a.AGENT_CONTENTGUBUN) as contentGubun,
+					a.AGENT_STATE, a.CONN_DATE, c.CENTER_NM
+				FROM tb_agentinfo a, tb_centerinfo c
+				WHERE a.CENTER_ID = c.CENTER_ID
+				<if test="searchKeyword != ''">
+					<choose>
+						<when test="searchCondition == 'agentNm'">
+							and a.AGENT_NM LIKE CONCAT('%',#{searchKeyword},'%')
+						</when>
+						<when test="searchCondition == 'disSeq'">
+							and a.DISPLAY_SEQ = #{searchKeyword}
+						</when>
+						<otherwise>
+							and a.AGENT_REMARK LIKE CONCAT('%',#{searchKeyword},'%')
+						</otherwise>
+					</choose>
+				</if>
+				<if test="searchDisplayseq != ''">
+					and a.displaySeq = #{searchDisplayseq}
+				</if>
+				<if test="searchCenterid != ''">
+					and a.CENTER_ID = #{searchCenterid}
+					<if test="searchFloor != ''">
+						and a.AGENT_FLOOR = #{searchFloor}
+					</if>
+				</if>
+				<if test="searchAgentState != ''">
+					and a.AGENT_STATE =#{searchAgentState}
+				</if>
+				<if test="adminLevel == 'ROLE_ADMIN' and searchPartid != ''">
+					and a.PART_ID = #{searchPartid}
+				</if>
+				<if test="adminLevel != 'ROLE_ADMIN'">
+					and a.PART_ID IN (
+					select part_id from tb_partinfo where part_id = #{partId}
+					union all
+					SELECT hi.part_id
+					FROM (
+					SELECT fn_hierarchy(part_id) AS partId, @level AS level
+					FROM (
+					SELECT @start_with := #{partId},
+					@partId := @start_with,
+					@level := 0
+					) vars, tb_partinfo
+					WHERE @partId IS NOT NULL
+					) ho
+					JOIN tb_partinfo hi
+					ON hi.part_id = ho.partId
+					)
+				</if>
+				ORDER BY a.AGENT_CODE DESC
+			)TB
+		ORDER BY TB.AGENT_CODE DESC limit #{firstIndex}, #{recordCountPerPage}
+	</select>
+</mapper>
